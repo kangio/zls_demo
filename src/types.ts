@@ -26,4 +26,27 @@ export interface Scenario {
   evolution: { round: string; action: string; tokens: string; type: string }[]
   bottleneck: string
   bottleneckSub: string
+  prefillNodes: number
+  decodeNodes: number
+  nodesPerInstance: number
+  prefillInstances: number
+  decodeInstances: number
+  reservedNodes: number
+  ddrTB: number
+  localSsdTB: number
+  remoteSsdTB: number
+  hbmDemandTB: number
+  ddrDemandTB: number
+  localSsdDemandTB: number
+  remoteSsdDemandTB: number
+  fabricUtilization: number
+  ttftTarget: number
+  ttftResult: number
+  tpotTarget: number
+  tpotResult: number
+  throughputTarget: number
+  throughputResult: number
+  maxQps: number
+  maxConcurrency: number
+  kvHitRate: number
 }
