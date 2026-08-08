@@ -1,0 +1,29 @@
+export type ScenarioKey = 'rag' | 'long' | 'coding'
+export type Stage = 'IDLE' | 'CHECKING' | 'SIMULATING' | 'OPTIMIZING' | 'VALIDATING' | 'COMPLETED'
+
+export interface Scenario {
+  key: ScenarioKey
+  name: string
+  short: string
+  model: string
+  modelSize: string
+  framework: string
+  runtime: string
+  comm: string
+  gpu: string
+  gpuCount: number
+  nodes: number
+  peak: number
+  average: number
+  inputTokens: number
+  outputTokens: number
+  turns: number
+  toolCalls: number
+  reuse: number
+  prefixGrowth: number
+  load: number[]
+  prefixItems: { label: string; value: number; meta: string }[]
+  evolution: { round: string; action: string; tokens: string; type: string }[]
+  bottleneck: string
+  bottleneckSub: string
+}

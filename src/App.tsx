@@ -1,0 +1,127 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import ReactECharts from 'echarts-for-react'
+import { scenarios } from './mock/scenarios'
+import type { ScenarioKey, Stage } from './types'
+
+const Icon = ({ name, size = 18 }: { name: string; size?: number }) => {
+  const paths: Record<string, string> = {
+    cube:'M12 2 3 7l9 5 9-5-9-5Zm-9 5v10l9 5V12M21 7v10l-9 5', chip:'M9 3v3m6-3v3m-6 12v3m6-3v3M3 9h3m-3 6h3m12-6h3m-3 6h3M7 7h10v10H7z', activity:'M3 12h4l2-6 4 12 2-6h6', target:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-4a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0-4a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z', sliders:'M4 7h10m4 0h2M4 17h2m4 0h10M14 4v6M6 14v6', play:'m9 7 7 5-7 5V7Z', download:'M12 3v12m-5-5 5 5 5-5M5 21h14', check:'m5 12 4 4L19 6', layers:'M12 3 3 8l9 5 9-5-9-5Zm-9 10 9 5 9-5m-18 5 9 5 9-5', network:'M12 5v4m-7 6v4m14-4v4M5 15h14M5 15l7-6 7 6M12 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM5 19a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm14 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z', alert:'M12 9v4m0 4h.01M10.3 3.8 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.8a2 2 0 0 0-3.4 0Z', arrow:'m9 18 6-6-6-6', database:'M4 6c0 2 16 2 16 0S4 4 4 6Zm0 0v6c0 2 16 2 16 0V6m-16 6v6c0 2 16 2 16 0v-6', menu:'M4 6h16M4 12h16M4 18h16'
+  }
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name] || paths.cube}/></svg>
+}
+
+const navItems = [
+  {id:'model',label:'模型与软件栈',sub:'模型结构与运行环境',icon:'cube'},
+  {id:'hardware',label:'硬件与资源拓扑',sub:'计算、网络与存储',icon:'chip'},
+  {id:'workload',label:'Agent 业务负载',sub:'请求、共享与演化',icon:'activity'},
+  {id:'objective',label:'目标与约束',sub:'SLO、成本与功耗',icon:'target'},
+  {id:'tunables',label:'可调参数',sub:'联合搜索空间',icon:'sliders'},
+]
+
+const stageText: Record<Stage,string> = {IDLE:'等待配置',CHECKING:'检查输入与约束',SIMULATING:'执行方案仿真',OPTIMIZING:'搜索候选方案',VALIDATING:'验证性能与 SLO',COMPLETED:'规划完成'}
+const stages: Stage[] = ['CHECKING','SIMULATING','OPTIMIZING','VALIDATING','COMPLETED']
+
+function App() {
+  const [scenarioKey,setScenarioKey] = useState<ScenarioKey>('rag')
+  const [section,setSection] = useState('model')
+  const [workspace,setWorkspace] = useState<'input'|'tunables'|'results'>('input')
+  const [stage,setStage] = useState<Stage>('IDLE')
+  const [progress,setProgress] = useState(0)
+  const [resultTab,setResultTab] = useState<'plan'|'performance'|'bottleneck'>('plan')
+  const [scale,setScale] = useState(1)
+  const timer = useRef<number | null>(null)
+  const scenario = scenarios[scenarioKey]
+
+  useEffect(()=>()=>{ if(timer.current) window.clearInterval(timer.current) },[])
+  const selectNav = (id:string) => { setSection(id); setWorkspace(id === 'tunables' ? 'tunables' : 'input') }
+  const startSimulation = () => {
+    if(timer.current) window.clearInterval(timer.current)
+    setWorkspace('results'); setStage('CHECKING'); setProgress(3)
+    let p = 3
+    timer.current = window.setInterval(()=>{
+      p += p < 18 ? 3 : p < 74 ? 2 : 4
+      if(p >= 100){ p=100; setStage('COMPLETED'); setResultTab('plan'); if(timer.current) window.clearInterval(timer.current) }
+      else if(p < 18) setStage('CHECKING')
+      else if(p < 38) setStage('SIMULATING')
+      else if(p < 86) setStage('OPTIMIZING')
+      else setStage('VALIDATING')
+      setProgress(p)
+    },120)
+  }
+
+  return <div className="app-shell">
+    <Header scenarioKey={scenarioKey} onScenario={setScenarioKey}/>
+    <aside className="sidebar">
+      <div className="side-kicker">规划流程</div>
+      <div className="nav-list">{navItems.map((item,i)=><button key={item.id} className={`nav-item ${section===item.id && workspace!=='results'?'active':''}`} onClick={()=>selectNav(item.id)}>
+        <span className="nav-index">0{i+1}</span><span className="nav-icon"><Icon name={item.icon}/></span><span><b>{item.label}</b><small>{item.sub}</small></span>
+      </button>)}</div>
+      <div className="side-divider"/>
+      <div className="flow-mini"><span>输入配置</span><Icon name="arrow" size={13}/><span>联合寻优</span><Icon name="arrow" size={13}/><span>规划输出</span></div>
+      <button className="start-button" onClick={startSimulation}><Icon name="play"/><span>开始仿真规划<small>Simulation & Planning</small></span></button>
+      <div className="scope-note"><span className="pulse-dot"/>展示模式 · Mock Dataset</div>
+    </aside>
+    <main className="main">
+      <div className="workspace-tabs">
+        <button className={workspace==='input'?'active':''} onClick={()=>setWorkspace('input')}>输入配置</button>
+        <button className={workspace==='tunables'?'active':''} onClick={()=>setWorkspace('tunables')}>可调参数</button>
+        <button className={workspace==='results'?'active':''} onClick={()=>setWorkspace('results')}>规划结果 {stage==='COMPLETED'&&<i/>}</button>
+      </div>
+      <div className="content-scroll">
+        {workspace==='input' && <InputWorkspace section={section==='tunables'?'model':section} scenarioKey={scenarioKey}/>} 
+        {workspace==='tunables' && <Tunables scale={scale} setScale={setScale}/>} 
+        {workspace==='results' && <Results stage={stage} progress={progress} scenarioKey={scenarioKey} tab={resultTab} setTab={setResultTab}/>} 
+      </div>
+    </main>
+    <footer className="statusbar"><span><i className="ok-dot"/>配置完整度 <b>100%</b></span><span>场景 <b>{scenario.name}</b></span><span>资源 <b>{scenario.nodes} 节点 · {scenario.gpuCount} {scenario.gpu.split(' ')[0]}</b></span><span className={`run-state ${stage.toLowerCase()}`}><i/>{stageText[stage]}</span><span className="status-right"><Icon name="check" size={15}/>未发现约束冲突</span></footer>
+  </div>
+}
+
+function Header({scenarioKey,onScenario}:{scenarioKey:ScenarioKey,onScenario:(v:ScenarioKey)=>void}){
+  return <header className="header"><div className="brand-mark"><span/><span/><span/></div><div className="brand"><h1>算存网一体化规划仿真平台</h1><p>INTEGRATED COMPUTING · STORAGE · NETWORK PLANNING SIMULATION PLATFORM</p></div><div className="header-context"><span className="env-pill"><i/>FRONT-END DEMO</span><label>业务场景<select value={scenarioKey} onChange={e=>onScenario(e.target.value as ScenarioKey)}><option value="rag">RAG Agent</option><option value="long">长上下文 Agent</option><option value="coding">Coding Agent</option></select></label><button className="ghost-button"><Icon name="download" size={16}/>导出方案</button></div></header>
+}
+
+function InputWorkspace({section,scenarioKey}:{section:string;scenarioKey:ScenarioKey}){
+  const s=scenarios[scenarioKey]
+  if(section==='hardware') return <Hardware scenarioKey={scenarioKey}/>
+  if(section==='workload') return <Workload scenarioKey={scenarioKey}/>
+  if(section==='objective') return <Objectives scenarioKey={scenarioKey}/>
+  return <div className="page"><PageTitle eyebrow="INPUT / 01" title="模型与推理软件栈" desc="定义推理对象及其运行环境，能力边界仅描述软件栈可支持范围。" badge="输入配置"/>
+    <div className="grid two-one"><Card title="模型描述" subtitle="MODEL PROFILE" icon="cube"><div className="model-hero"><div className="model-symbol">Q3</div><div><span className="muted">当前模型</span><h2>{s.model}</h2><p>{s.modelSize} · MoE Architecture</p></div><span className="verified"><Icon name="check" size={13}/>参数已校验</span></div><div className="spec-grid"><Field label="模型层数" value="80" unit="Layers"/><Field label="Hidden Size" value="8,192"/><Field label="Query Heads" value="64"/><Field label="KV Heads" value="8"/><Field label="Attention" value="GQA / Dense"/><Field label="MoE 结构" value="64 Experts / Top-2"/></div></Card>
+    <Card title="数据精度" subtitle="DATA TYPE" icon="layers"><div className="dtype-list"><Dtype name="Weight" value="BF16" pct={82}/><Dtype name="Activation" value="BF16" pct={82}/><Dtype name="KV Cache" value="FP16" pct={68}/></div><div className="info-note">精度配置将影响显存占用、计算吞吐与 KV Cache 容量。</div></Card></div>
+    <Card title="推理软件栈" subtitle="SOFTWARE CAPABILITY BOUNDARY" icon="chip"><div className="software-row"><Software name="推理框架" value={s.framework} tag="Serving"/><span className="connector"/><Software name="加速运行时" value={s.runtime} tag="Runtime"/><span className="connector"/><Software name="集合通信库" value={s.comm} tag="Collective"/></div><div className="capabilities"><span>能力边界</span>{['连续批处理','P/D 分离','多维并行','Prefix Cache','KV 分层搬运','异步 I/O'].map((x,i)=><b key={x} className={i<5?'supported':''}><Icon name={i<5?'check':'alert'} size={13}/>{x}</b>)}</div></Card>
+  </div>
+}
+
+function Hardware({scenarioKey}:{scenarioKey:ScenarioKey}){ const s=scenarios[scenarioKey]; return <div className="page"><PageTitle eyebrow="INPUT / 02" title="硬件与资源拓扑" desc="描述计算、主机、网络与存储资源，以及设备间物理连接关系。" badge={`${s.nodes} 个计算节点`}/><div className="resource-strip"><Metric icon="chip" label="加速设备" value={`${s.gpuCount}`} unit={s.gpu}/><Metric icon="database" label="HBM 总容量" value={scenarioKey==='long'?'65.5':'61.4'} unit="TB"/><Metric icon="network" label="Fabric 带宽" value="25.6" unit="Tbps"/><Metric icon="database" label="存储容量" value="320" unit="TB"/></div><div className="grid topology-grid"><Card title="资源连接拓扑" subtitle="PHYSICAL AFFINITY" icon="network"><Topology/></Card><Card title="资源清单" subtitle="RESOURCE INVENTORY" icon="layers"><div className="inventory"><Inventory title="计算资源" value={`${s.gpuCount} × ${s.gpu}`} meta="BF16 989 TFLOPS · HBM 3.35 TB/s"/><Inventory title="主机资源" value={`${s.nodes} × 2-Socket Server`} meta="DDR5 2 TB · 8 NUMA / Node · PCIe 5.0"/><Inventory title="网络资源" value="400 GbE RDMA Fabric" meta="8 Spine · 32 Leaf · 96 ToR · 1:1"/><Inventory title="存储资源" value="NVMe + Remote KV Store" meta="32 GB/s Read · 4.2M IOPS · QD 256"/></div></Card></div></div> }
+
+function Topology(){return <div className="topology"><div className="top-layer">{['SPINE 01','SPINE 02','SPINE 03','SPINE 04'].map(x=><span key={x}>{x}<small>400G</small></span>)}</div><svg viewBox="0 0 800 125" preserveAspectRatio="none">{[100,300,500,700].flatMap((x,i)=>[140,400,660].map((y,j)=><line key={`${i}-${j}`} x1={x} y1="0" x2={y} y2="125"/>))}</svg><div className="leaf-layer">{['LEAF A','LEAF B','LEAF C'].map(x=><span key={x}>{x}<small>48-Port</small></span>)}</div><div className="rack-layer">{['RACK 01–32','RACK 33–64','RACK 65–96'].map(x=><span key={x}><i/><i/><i/><i/><b>{x}</b></span>)}</div><div className="topology-legend"><i/>400GbE Spine-Link <i/>200GbE ToR-Link</div></div>}
+
+function Workload({scenarioKey}:{scenarioKey:ScenarioKey}){const s=scenarios[scenarioKey];const option=useMemo(()=>({grid:{left:36,right:14,top:24,bottom:26},tooltip:{trigger:'axis',backgroundColor:'#13243a',borderColor:'#263d59',textStyle:{color:'#d9e7f7'}},xAxis:{type:'category',data:s.load.map((_,i)=>`${String(i).padStart(2,'0')}:00`),axisLabel:{color:'#60758d',interval:3,fontSize:10},axisLine:{lineStyle:{color:'#24364c'}},axisTick:{show:false}},yAxis:{type:'value',max:100,axisLabel:{formatter:'{value}%',color:'#60758d',fontSize:10},splitLine:{lineStyle:{color:'#182a3e'}}},series:[{type:'line',data:s.load,smooth:.35,symbol:'none',lineStyle:{width:2,color:'#38bdf8'},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(56,189,248,.38)'},{offset:1,color:'rgba(56,189,248,.02)'}]}},markPoint:{symbolSize:38,data:[{type:'max',name:'峰值'}],label:{color:'#07111f',fontSize:9}}}]}),[s]);return <div className="page"><PageTitle eyebrow="INPUT / 03" title="Agent 业务负载特征" desc="按请求规模、前缀共享和前缀演化三类特征还原具体业务请求形态。" badge={s.name}/><div className="metric-grid"><MiniMetric label="请求峰值" value={s.peak.toLocaleString()} unit="req/s"/><MiniMetric label="平均请求" value={s.average.toLocaleString()} unit="req/s"/><MiniMetric label="Input Token" value={s.inputTokens} unit="M tok/s"/><MiniMetric label="Output Token" value={s.outputTokens} unit="M tok/s"/><MiniMetric label="会话轮数" value={s.turns} unit="avg"/><MiniMetric label="工具调用" value={s.toolCalls} unit="/ task"/></div><div className="grid workload-grid"><Card title="请求规模特征" subtitle="24H REQUEST PROFILE" icon="activity"><div className="chart-toolbar"><span className="active">Request</span><span>Input Token</span><span>Output Token</span><span>并发会话</span></div><ReactECharts option={option} style={{height:238}}/></Card><Card title="前缀共享特征" subtitle={`REUSE RATE ${s.reuse}%`} icon="layers"><div className="prefix-bars">{s.prefixItems.map(x=><div key={x.label}><div><b>{x.label}</b><small>{x.meta}</small><strong>{x.value}%</strong></div><span><i style={{width:`${x.value}%`}}/></span></div>)}</div></Card></div><Card title="前缀演化特征" subtitle={`AVERAGE GROWTH +${s.prefixGrowth.toLocaleString()} TOKEN / TURN`} icon="network"><div className="timeline">{s.evolution.map((x,i)=><div key={x.round} className={x.type}><span>{x.round}</span><i/><b>{x.action}</b><small>{x.tokens}</small>{i<s.evolution.length-1&&<em/>}</div>)}</div></Card></div>}
+
+function Objectives({scenarioKey}:{scenarioKey:ScenarioKey}){const s=scenarios[scenarioKey];return <div className="page"><PageTitle eyebrow="INPUT / 04" title="目标与约束" desc="定义方案必须满足的服务性能目标与资源边界。" badge="7 项约束已启用"/><div className="grid objective-grid"><Card title="服务性能目标" subtitle="SERVICE LEVEL OBJECTIVE" icon="target"><div className="objective-table"><Objective label="TTFT P95" value="500" unit="ms"/><Objective label="TPOT P95" value="50" unit="ms"/><Objective label="目标吞吐" value="5,000" unit="token/s"/><Objective label="最大 QPS" value={Math.round(s.peak*.9).toLocaleString()} unit="req/s"/><Objective label="目标并发" value="8,192" unit="sessions"/></div></Card><Card title="资源与成本约束" subtitle="CAPACITY GUARDRAILS" icon="sliders"><div className="objective-table"><Objective label="设备数量上限" value={`${Math.ceil(s.gpuCount/128)*128}`} unit="GPU/NPU"/><Objective label="峰值功耗上限" value="980" unit="kW"/><Objective label="年度成本上限" value="1.20" unit="亿元"/><div className="constraint-health"><Icon name="check"/><div><b>约束可行性检查通过</b><small>当前资源池存在 46 个可行候选方案</small></div></div></div></Card></div></div>}
+
+function Tunables({scale,setScale}:{scale:number;setScale:(n:number)=>void}){const [cat,setCat]=useState('调度');const cats=['调度','部署','并行','路由','KV 容量','缓存策略','KV 搬运'];return <div className="page"><PageTitle eyebrow="TUNABLES / 05" title="联合搜索空间" desc="配置调度、部署、并行、路由及 KV 策略的候选范围。" badge="搜索空间 356 组"/><div className="tunable-layout"><div className="category-list">{cats.map((x,i)=><button className={cat===x?'active':''} onClick={()=>setCat(x)} key={x}><span>0{i+1}</span>{x}<Icon name="arrow" size={14}/></button>)}</div><div><Card title={`${cat}参数`} subtitle="SEARCH RANGE" icon="sliders"><TunableContent cat={cat}/></Card><Card title="负载倍率" subtitle="QUICK SCALING" icon="activity"><div className="scale-row"><div><b>请求规模快捷调整</b><small>同步放大 QPS 与请求并发，不改变负载特征分布。</small></div><div>{[1,2,5,10].map(x=><button className={scale===x?'active':''} onClick={()=>setScale(x)} key={x}>{x}×</button>)}</div></div></Card></div></div></div>}
+
+function TunableContent({cat}:{cat:string}){const rows:Record<string,[string,string,string][]>={调度:[['max_num_seqs','128','64 — 512'],['max_num_batched_tokens','16,384','8K — 64K'],['调度策略','Continuous Batching','Continuous / Priority'],['Chunked Prefill','Enabled · 4K','2K — 16K']],部署:[['部署模式','P-D 分离','共享池 / P-D 分离'],['Prefill 实例','32','16 — 64'],['Decode 实例','64','32 — 128'],['单实例卡数','8','4 — 16']],并行:[['Tensor Parallel','8','4 — 16'],['Data Parallel','4','2 — 16'],['Pipeline Parallel','1','1 — 4'],['Expert Parallel','8','4 — 16']],路由:[['实例选择','Load-aware + Affinity','RR / Affinity / Load-aware'],['Admission Control','Enabled','On / Off'],['最大排队长度','2,048','512 — 8,192'],['请求优先级','SLO-aware','FIFO / SLO-aware']], 'KV 容量':[['HBM 配额','8.2 TB','6 — 12 TB'],['DDR 容量','7.1 TB','4 — 16 TB'],['SSD 容量','5.1 TB','4 — 32 TB'],['池化方式','Global Pool','Local / Global']],缓存策略:[['Prefix Cache','Enabled','On / Off'],['Block 粒度','16 token','8 — 64 token'],['淘汰策略','Cost-aware LRU','LRU / LFU / Cost-aware'],['Prefetch','Adaptive','Off / Static / Adaptive']], 'KV 搬运':[['搬运路径','HBM ↔ DDR ↔ SSD','2-tier / 3-tier / Remote'],['传输协议','RDMA','RDMA / TCP'],['Worker 数','16','4 — 32'],['异步流水','Enabled · 3 stages','2 — 5 stages']]};return <div className="tunable-table"><div className="tunable-head"><span>参数</span><span>当前值</span><span>寻优范围</span></div>{rows[cat].map(r=><div key={r[0]}><b>{r[0]}</b><span>{r[1]}</span><small>{r[2]}</small></div>)}</div>}
+
+function Results({stage,progress,scenarioKey,tab,setTab}:{stage:Stage;progress:number;scenarioKey:ScenarioKey;tab:'plan'|'performance'|'bottleneck';setTab:(t:'plan'|'performance'|'bottleneck')=>void}){const s=scenarios[scenarioKey];if(stage!=='COMPLETED')return <div className="page result-loading"><PageTitle eyebrow="SIMULATION / PLANNING" title="算存网一体化规划寻优" desc="正在联合评估调度、部署、并行、网络、存储与 KV 策略空间。" badge={stageText[stage]}/><div className="optimizer"><div className="optimizer-orbit"><span>{progress}<small>%</small></span><i/><i/><i/></div><h2>{stage==='IDLE'?'等待启动仿真规划':stageText[stage]}</h2><p>{stage==='IDLE'?'确认输入与可调参数后，点击左侧“开始仿真规划”。':'基于当前 Agent 负载与 SLO 约束评估可行规划方案'}</p><div className="progress"><i style={{width:`${progress}%`}}/></div><div className="search-stats"><MiniMetric label="候选方案" value={Math.round(356*progress/100)} unit="/ 356"/><MiniMetric label="已评估" value={Math.round(214*progress/100)} unit="组"/><MiniMetric label="满足 SLO" value={Math.round(46*progress/100)} unit="组"/><MiniMetric label="当前最优" value={progress<35?'—':`#${Math.max(1,Math.round(183*progress/100))}`} unit="Solution"/></div><div className="stage-flow">{stages.map(x=><div key={x} className={`${stages.indexOf(x)<stages.indexOf(stage)?'done':''} ${x===stage?'active':''}`}><i>{stages.indexOf(x)<stages.indexOf(stage)?<Icon name="check" size={14}/>:stages.indexOf(x)+1}</i><span>{stageText[x]}</span></div>)}</div></div></div>;
+return <div className="page"><div className="result-hero"><div><span className="success-label"><Icon name="check" size={14}/>PLANNING COMPLETED</span><h2>推荐方案 · Solution #183</h2><p>{s.name} · 满足全部 SLO 与资源约束 · 综合评分 92.8</p></div><div className="hero-score"><strong>92.8</strong><span>综合评分</span></div><div className="hero-kpis"><div><small>TTFT P95</small><b>420 <i>ms</i></b></div><div><small>TPOT P95</small><b>38 <i>ms</i></b></div><div><small>吞吐</small><b>6,240 <i>tok/s</i></b></div><span className="pass-pill">ALL SLO PASS</span></div></div><div className="result-tabs"><button className={tab==='plan'?'active':''} onClick={()=>setTab('plan')}>规划方案</button><button className={tab==='performance'?'active':''} onClick={()=>setTab('performance')}>方案性能表现</button><button className={tab==='bottleneck'?'active':''} onClick={()=>setTab('bottleneck')}>瓶颈与寻优结果</button></div>{tab==='plan'?<Plan s={s}/>:tab==='performance'?<Performance/>:<Bottleneck s={s}/>}</div>}
+
+function Plan({s}:{s:(typeof scenarios)[ScenarioKey]}){return <div className="results-grid"><Card title="计算资源与部署" subtitle="COMPUTE & DEPLOYMENT" icon="chip"><div className="plan-primary"><span><small>设备总数</small><b>{s.gpuCount}</b><i>{s.gpu}</i></span><span><small>服务器节点</small><b>{s.nodes}</b><i>8 accelerators / node</i></span><span><small>P : D</small><b>1 : 2</b><i>256 / 512 devices</i></span></div><div className="kv-legend"><span>Prefill <b>33%</b></span><i className="prefill"/><span>Decode <b>67%</b></span><i className="decode"/></div><div className="parallel-row">{[['TP','8'],['DP','4'],['PP','1'],['EP','8']].map(x=><span key={x[0]}><small>{x[0]}</small><b>{x[1]}</b></span>)}</div></Card><Card title="调度与路由" subtitle="SCHEDULING & ROUTING" icon="sliders"><div className="key-value"><p><span>Batch 策略</span><b>Continuous Batching</b></p><p><span>Chunked Prefill</span><b>Enabled / 4K</b></p><p><span>路由策略</span><b>Load-aware + Affinity</b></p><p><span>Admission Control</span><b className="green">Enabled</b></p></div></Card><Card title="KV Cache 分层规划" subtitle="20.4 TB TOTAL POOL" icon="database"><div className="kv-stack"><span style={{width:'40%'}}>HBM <b>8.2 TB</b></span><span style={{width:'35%'}}>DDR <b>7.1 TB</b></span><span style={{width:'25%'}}>SSD <b>5.1 TB</b></span></div><div className="strategy-tags"><b>Prefix Cache</b><b>Cost-aware LRU</b><b>Adaptive Prefetch</b><b>RDMA Transfer</b></div></Card><Card title="网络与存储" subtitle="SPINE-LEAF FABRIC" icon="network"><div className="infra-summary"><div><strong>25.6</strong><span>Tbps Fabric</span><small>8 Spine · 32 Leaf · 96 ToR</small></div><div><strong>320</strong><span>TB Storage</span><small>32 GB/s Read · 4.2M IOPS</small></div></div><div className="network-mini"><i/><i/><i/><span/><span/><span/><span/><span/><span/></div></Card></div>}
+
+function Performance(){const util=[['GPU / NPU',84,'#38bdf8'],['HBM',78,'#818cf8'],['DDR',64,'#a78bfa'],['Network',71,'#2dd4bf'],['Storage I/O',58,'#22c55e']];return <div><div className="grid perf-grid"><Card title="服务性能与 SLO" subtitle="ALL TARGETS PASSED" icon="target"><div className="slo-table"><div><span>指标</span><span>目标</span><span>仿真结果</span><span>状态</span></div>{[['TTFT P95','< 500 ms','420 ms'],['TPOT P95','< 50 ms','38 ms'],['Throughput','> 5,000 tok/s','6,240 tok/s'],['Availability','99.99%','99.995%']].map(r=><div key={r[0]}><b>{r[0]}</b><span>{r[1]}</span><strong>{r[2]}</strong><i>PASS</i></div>)}</div></Card><Card title="资源利用率与余量" subtitle="HEADROOM 16%" icon="activity"><div className="util-list">{util.map(x=><div key={String(x[0])}><span>{x[0]}</span><b><i style={{width:`${x[1]}%`,background:String(x[2])}}/></b><strong>{x[1]}%</strong></div>)}</div></Card></div><div className="metric-grid result-metrics"><MiniMetric label="E2E P95" value="2.84" unit="s"/><MiniMetric label="最大 QPS" value="13,420" unit="req/s"/><MiniMetric label="最大并发" value="9,680" unit="sessions"/><MiniMetric label="SLO 达标率" value="99.96" unit="%"/><MiniMetric label="KV 命中率" value="86.4" unit="%"/><MiniMetric label="超时率" value="0.04" unit="%"/></div></div>}
+
+function Bottleneck({s}:{s:(typeof scenarios)[ScenarioKey]}){const sens=[['P:D 比例',87,'+18.4%'],['HBM KV 配额',72,'+12.1%'],['Chunk 大小',58,'+8.7%'],['RDMA 并发',49,'+6.2%'],['Batch Tokens',36,'+4.8%']];return <div><div className="grid bottleneck-grid"><Card title="主要瓶颈" subtitle="BOTTLENECK DIAGNOSIS" icon="alert"><div className="bottleneck-main"><span>PRIMARY BOTTLENECK</span><h2>{s.bottleneck}</h2><p>峰值负载下资源争用导致 <b>TPOT P99 +12%</b></p></div><div className="bottleneck-secondary"><span>次要瓶颈</span><b>{s.bottleneckSub}</b><i>资源余量 14%</i></div></Card><Card title="参数敏感性" subtitle="IMPACT ON OBJECTIVE" icon="sliders"><div className="sensitivity">{sens.map(x=><div key={String(x[0])}><span>{x[0]}</span><b><i style={{width:`${x[1]}%`}}/></b><strong>{x[2]}</strong></div>)}</div></Card></div><Card title="Top-K 候选方案" subtitle="FEASIBLE SOLUTIONS" icon="layers"><div className="candidate-table"><div><span>方案</span><span>SLO</span><span>GPU/NPU</span><span>年度成本</span><span>吞吐</span><span>主要特点</span></div>{[['推荐方案','PASS',s.gpuCount,'¥ 1.08 亿','6,240','综合最优'],['最小资源','PASS',s.gpuCount-64,'¥ 0.96 亿','5,180','资源最少'],['最大吞吐','PASS',s.gpuCount+128,'¥ 1.24 亿','7,920','吞吐最高']].map((r,i)=><div className={i===0?'recommended':''} key={String(r[0])}><b>{i===0&&<i>★</i>}{r[0]}</b><span className="pass">{r[1]}</span><span>{r[2]}</span><span>{r[3]}</span><strong>{r[4]} tok/s</strong><span>{r[5]}</span></div>)}</div></Card></div>}
+
+function PageTitle({eyebrow,title,desc,badge}:{eyebrow:string;title:string;desc:string;badge:string}){return <div className="page-title"><div><span>{eyebrow}</span><h1>{title}</h1><p>{desc}</p></div><b>{badge}</b></div>}
+function Card({title,subtitle,icon,children}:{title:string;subtitle:string;icon:string;children:React.ReactNode}){return <section className="card"><div className="card-head"><span><Icon name={icon}/></span><div><h3>{title}</h3><p>{subtitle}</p></div><button>•••</button></div><div className="card-body">{children}</div></section>}
+function Field({label,value,unit}:{label:string;value:string;unit?:string}){return <label className="field"><span>{label}</span><div><b>{value}</b>{unit&&<small>{unit}</small>}</div></label>}
+function Dtype({name,value,pct}:{name:string;value:string;pct:number}){return <div className="dtype"><span>{name}</span><b>{value}</b><i><em style={{width:`${pct}%`}}/></i></div>}
+function Software({name,value,tag}:{name:string;value:string;tag:string}){return <div className="software"><span>{tag}</span><Icon name="chip"/><small>{name}</small><b>{value}</b></div>}
+function Metric({icon,label,value,unit}:{icon:string;label:string;value:string;unit:string}){return <div className="resource-metric"><span><Icon name={icon}/></span><div><small>{label}</small><b>{value}</b><i>{unit}</i></div></div>}
+function MiniMetric({label,value,unit}:{label:string;value:string|number;unit:string}){return <div className="mini-metric"><span>{label}</span><b>{value}</b><small>{unit}</small></div>}
+function Inventory({title,value,meta}:{title:string;value:string;meta:string}){return <div className="inventory-item"><i/><div><span>{title}</span><b>{value}</b><small>{meta}</small></div><Icon name="arrow" size={15}/></div>}
+function Objective({label,value,unit}:{label:string;value:string;unit:string}){return <div className="objective"><button className="switch on"><i/></button><b>{label}</b><span>{value}<small>{unit}</small></span></div>}
+
+export default App
