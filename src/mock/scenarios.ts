@@ -11,7 +11,7 @@ export const scenarios: Record<ScenarioKey, Scenario> = {
     bottleneck: 'RDMA Fabric', bottleneckSub: 'HBM Capacity'
   },
   long: {
-    key: 'long', name: '长上下文 Agent', short: '长文档分析与持续会话', model: 'DeepSeek-V3', modelSize: '671B / 37B Active', framework: 'MindIE 2.0', runtime: 'CANN 8.0', comm: 'HCCL 8.0', gpu: '昇腾 910B', gpuCount: 1024, nodes: 128,
+    key: 'long', name: 'Long-Context Agent', short: '长文档分析与持续会话', model: 'DeepSeek-V3', modelSize: '671B / 37B Active', framework: 'MindIE 2.0', runtime: 'CANN 8.0', comm: 'HCCL 8.0', gpu: '昇腾 910B', gpuCount: 1024, nodes: 128,
     peak: 4300, average: 2180, inputTokens: 29.8, outputTokens: 2.8, turns: 14.6, toolCalls: 1.4, reuse: 47, prefixGrowth: 2860, load: baseLoad.map((n,i)=>Math.max(18, n-(i%4)*5)),
     prefixItems: [{label:'会话历史',value:91,meta:'会话内共享'}, {label:'系统指令',value:76,meta:'全局共享'}, {label:'长文档块',value:52,meta:'任务内共享'}, {label:'跨会话上下文',value:19,meta:'低共享'}],
     evolution: [{round:'R1',action:'载入长文档',tokens:'+18K',type:'add'}, {round:'R2',action:'持续追加',tokens:'+3.6K',type:'add'}, {round:'R3',action:'持续追加',tokens:'+2.9K',type:'add'}, {round:'R4',action:'摘要压缩',tokens:'-8.4K',type:'trim'}, {round:'R5',action:'追问扩展',tokens:'+4.1K',type:'add'}],

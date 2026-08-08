@@ -12,6 +12,11 @@ const Icon = ({ name, size = 18 }: { name: string; size?: number }) => {
 
 const stageText: Record<Stage,string> = {IDLE:'等待配置',CHECKING:'检查输入与约束',SIMULATING:'执行方案仿真',OPTIMIZING:'搜索候选方案',VALIDATING:'验证性能与 SLO',COMPLETED:'规划完成'}
 const stages: Stage[] = ['CHECKING','SIMULATING','OPTIMIZING','VALIDATING','COMPLETED']
+const caseFeatures: Record<ScenarioKey,string[]> = {
+  rag:['中高 QPS','前缀高复用','检索增强'],
+  long:['超长输入','长会话','容量敏感'],
+  coding:['工具密集','长输出','分支重试'],
+}
 
 function App() {
   const [scenarioKey,setScenarioKey] = useState<ScenarioKey>('rag')
@@ -44,11 +49,10 @@ function App() {
     <aside className="sidebar">
       <div className="side-kicker">AGENT 业务案例</div>
       <div className="case-list">{(Object.keys(scenarios) as ScenarioKey[]).map((key,i)=>{const item=scenarios[key];return <button key={key} className={`case-item ${scenarioKey===key?'active':''}`} onClick={()=>{setScenarioKey(key);setStage('IDLE');setProgress(0)}}>
-        <span className="case-index">CASE 0{i+1}</span><span className="case-icon"><Icon name={key==='rag'?'database':key==='long'?'layers':'cube'}/></span><span><b>{item.name}</b><small>{item.short}</small></span><i/>
+        <div className="case-card-head"><span className="case-icon"><Icon name={key==='rag'?'database':key==='long'?'layers':'cube'}/></span><span><small className="case-index">CASE 0{i+1}</small><b>{item.name}</b></span><i/></div><p>{item.short}</p><div className="case-tags">{caseFeatures[key].map(x=><span key={x}>{x}</span>)}</div>
       </button>})}</div>
       <div className="side-divider"/>
-      <div className="current-case"><span>当前案例</span><b>{scenario.name}</b><small>{scenario.model} · {scenario.gpuCount} 卡</small></div>
-      <button className="start-button" onClick={startSimulation}><Icon name="play"/><span>开始仿真规划<small>Simulation & Planning</small></span></button>
+      <button className="start-button" onClick={startSimulation}><span className="start-icon"><Icon name="play"/></span><span>开始仿真规划<small>联合参数决策与性能验证</small></span><Icon name="arrow" size={14}/></button>
     </aside>
     <main className="main">
       <div className="workspace-tabs">
