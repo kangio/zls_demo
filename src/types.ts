@@ -22,7 +22,10 @@ export interface Scenario {
   reuse: number
   prefixGrowth: number
   load: number[]
+  requestMix: { label: string; share: number; prefix: string; input: string; output: string }[]
+  prefixHotness: { top: string; contribution: number; distribution: string }
   prefixItems: { label: string; value: number; meta: string }[]
+  evolutionBurst: string
   evolution: { round: string; action: string; tokens: string; type: string }[]
   bottleneck: string
   bottleneckSub: string
