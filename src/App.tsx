@@ -23,19 +23,20 @@ function App() {
   const [workspace,setWorkspace] = useState<'overview'|'input'|'optimization'|'results'>('overview')
   const [stage,setStage] = useState<Stage>('IDLE')
   const [progress,setProgress] = useState(0)
-  const [resultTab,setResultTab] = useState<'plan'|'performance'|'bottleneck'>('plan')
   const [scale,setScale] = useState(1)
   const timer = useRef<number | null>(null)
+  const contentScroll = useRef<HTMLDivElement>(null)
   const scenario = scenarios[scenarioKey]
 
   useEffect(()=>()=>{ if(timer.current) window.clearInterval(timer.current) },[])
+  useEffect(()=>{ contentScroll.current?.scrollTo({top:0}) },[workspace,scenarioKey])
   const startSimulation = () => {
     if(timer.current) window.clearInterval(timer.current)
     setWorkspace('optimization'); setStage('CHECKING'); setProgress(3)
     let p = 3
     timer.current = window.setInterval(()=>{
       p += p < 18 ? 3 : p < 74 ? 2 : 4
-      if(p >= 100){ p=100; setStage('COMPLETED'); setResultTab('plan'); if(timer.current) window.clearInterval(timer.current) }
+      if(p >= 100){ p=100; setStage('COMPLETED'); if(timer.current) window.clearInterval(timer.current) }
       else if(p < 18) setStage('CHECKING')
       else if(p < 38) setStage('SIMULATING')
       else if(p < 86) setStage('OPTIMIZING')
@@ -61,11 +62,11 @@ function App() {
         <button className={workspace==='optimization'?'active':''} onClick={()=>setWorkspace('optimization')}>仿真寻优</button>
         <button className={workspace==='results'?'active':''} onClick={()=>stage==='COMPLETED'&&setWorkspace('results')}>规划结果 {stage==='COMPLETED'&&<i/>}</button>
       </div>
-      <div className="content-scroll">
+      <div className="content-scroll" ref={contentScroll}>
         {workspace==='overview' && <WorkflowOverview onStart={()=>setWorkspace('input')}/>} 
         {workspace==='input' && <UnifiedInput scenarioKey={scenarioKey}/>} 
         {workspace==='optimization' && <OptimizationWorkspace scenarioKey={scenarioKey} stage={stage} progress={progress} scale={scale} setScale={setScale} onStart={startSimulation} onViewResults={()=>setWorkspace('results')}/>}
-        {workspace==='results' && <Results stage={stage} progress={progress} scenarioKey={scenarioKey} tab={resultTab} setTab={setResultTab}/>}
+        {workspace==='results' && <Results stage={stage} progress={progress} scenarioKey={scenarioKey}/>}
       </div>
     </main>
     <footer className="statusbar"><span><i className="ok-dot"/>配置完整度 <b>100%</b></span><span>场景 <b>{scenario.name}</b></span><span>资源 <b>{scenario.nodes} 节点 · {scenario.gpuCount} {scenario.gpu.split(' ')[0]}</b></span><span className={`run-state ${stage.toLowerCase()}`}><i/>{stageText[stage]}</span><span className="status-right"><Icon name="check" size={15}/>未发现约束冲突</span></footer>
@@ -178,8 +179,10 @@ function Tunables(){const [cat,setCat]=useState('推理引擎调度');const cats
 
 function TunableContent({cat}:{cat:string}){const rows:Record<string,[string,string,string][]>={'推理引擎调度':[['max_num_seqs','128','64 — 512'],['max_num_batched_tokens','16,384','8K — 64K'],['实例内调度','Continuous Batching','Continuous / Priority'],['Chunked Prefill','Enabled · 4K','2K — 16K']],部署拓扑:[['部署模式','P-D 分离','共享池 / P-D 分离'],['Prefill 节点','64','32 — 128'],['Decode 节点','32','16 — 96'],['实例放置','Topology-aware','Local / Topology-aware']],并行策略:[['Tensor Parallel','8','4 — 16'],['Data Parallel','4','2 — 16'],['Pipeline Parallel','1','1 — 4'],['Expert Parallel','8','4 — 16']],'服务级路由与准入':[['实例选择','Load-aware','RR / Affinity / Load-aware'],['P-D Pairing','Topology-aware','Static / Load / Topology-aware'],['Admission Control','Enabled','On / Off'],['请求优先级','SLO-aware','FIFO / SLO-aware']],'KV 复用与缓存策略':[['Prefix Cache','Enabled','On / Off'],['缓存准入','Reuse-aware','All / Reuse-aware'],['淘汰策略','Cost-aware LRU','LRU / LFU / Cost-aware'],['Prefetch','Adaptive','Off / Static / Adaptive']],'KV 资源池策略':[['KV 管理组件','LMCache','Native / LMCache / HiCache'],['池化范围','Global','Local / Cluster / Global'],['分布式存储','Mooncake Store','Local / Mooncake / 3FS'],['分层放置迁移','HBM ↔ DDR ↔ SSD','2-tier / 3-tier / Global']],'数据流编排':[['Transfer Backend','RDMA Direct','UB / RDMA / NVMe-oF'],['Slice 粒度','Adaptive','Static / Adaptive'],['Rail Mapping','Topology-aware','Single / Multi-Rail'],['传输优先级','SLO-aware','FIFO / SLO-aware']]};return <div className="tunable-table"><div className="tunable-head"><span>参数</span><span>当前值</span><span>寻优范围</span></div>{rows[cat].map(r=><div key={r[0]}><b>{r[0]}</b><span>{r[1]}</span><small>{r[2]}</small></div>)}</div>}
 
-function Results({stage,progress,scenarioKey,tab,setTab}:{stage:Stage;progress:number;scenarioKey:ScenarioKey;tab:'plan'|'performance'|'bottleneck';setTab:(t:'plan'|'performance'|'bottleneck')=>void}){const s=scenarios[scenarioKey];if(stage!=='COMPLETED')return <div className="page result-loading"><PageTitle eyebrow="SIMULATION / PLANNING" title="算存网一体化规划寻优" desc="正在评估引擎调度、部署、并行、服务路由、KV 缓存、资源池与数据流编排空间。" badge={stageText[stage]}/><div className="optimizer"><div className="optimizer-orbit"><span>{progress}<small>%</small></span><i/><i/><i/></div><h2>{stage==='IDLE'?'等待启动仿真规划':stageText[stage]}</h2><p>{stage==='IDLE'?'确认输入与可调参数后，点击左侧“开始仿真规划”。':'基于当前 Agent 负载与 SLO 约束评估可行规划方案'}</p><div className="progress"><i style={{width:`${progress}%`}}/></div><div className="search-stats"><MiniMetric label="候选方案" value={Math.round(512*progress/100)} unit="/ 512"/><MiniMetric label="已评估" value={Math.round(286*progress/100)} unit="组"/><MiniMetric label="满足 SLO" value={Math.round(58*progress/100)} unit="组"/><MiniMetric label="当前最优" value={progress<35?'—':`#${Math.max(1,Math.round(183*progress/100))}`} unit="Solution"/></div><div className="stage-flow">{stages.map(x=><div key={x} className={`${stages.indexOf(x)<stages.indexOf(stage)?'done':''} ${x===stage?'active':''}`}><i>{stages.indexOf(x)<stages.indexOf(stage)?<Icon name="check" size={14}/>:stages.indexOf(x)+1}</i><span>{stageText[x]}</span></div>)}</div></div></div>;
-return <div className="page"><div className="result-hero"><div><span className="success-label"><Icon name="check" size={14}/>PLANNING COMPLETED</span><h2>推荐方案 · Solution #183</h2><p>{s.name} · 满足全部 SLO 与资源约束 · 综合评分 92.8</p></div><div className="hero-score"><strong>92.8</strong><span>综合评分</span></div><div className="hero-kpis"><div><small>TTFT P95</small><b>{s.ttftResult} <i>ms</i></b></div><div><small>TPOT P95</small><b>{s.tpotResult} <i>ms</i></b></div><div><small>吞吐</small><b>{s.throughputResult.toFixed(1)} <i>M tok/s</i></b></div><span className="pass-pill">ALL SLO PASS</span></div></div><div className="result-tabs"><button className={tab==='plan'?'active':''} onClick={()=>setTab('plan')}>规划方案</button><button className={tab==='performance'?'active':''} onClick={()=>setTab('performance')}>方案性能表现</button><button className={tab==='bottleneck'?'active':''} onClick={()=>setTab('bottleneck')}>瓶颈与寻优结果</button></div>{tab==='plan'?<Plan s={s}/>:tab==='performance'?<Performance s={s}/>:<Bottleneck s={s}/>}</div>}
+function Results({stage,progress,scenarioKey}:{stage:Stage;progress:number;scenarioKey:ScenarioKey}){const s=scenarios[scenarioKey];if(stage!=='COMPLETED')return <div className="page result-loading"><PageTitle eyebrow="SIMULATION / PLANNING" title="算存网一体化规划寻优" desc="正在评估引擎调度、部署、并行、服务路由、KV 缓存、资源池与数据流编排空间。" badge={stageText[stage]}/><div className="optimizer"><div className="optimizer-orbit"><span>{progress}<small>%</small></span><i/><i/><i/></div><h2>{stage==='IDLE'?'等待启动仿真规划':stageText[stage]}</h2><p>{stage==='IDLE'?'确认输入与可调参数后，点击左侧“开始仿真规划”。':'基于当前 Agent 负载与 SLO 约束评估可行规划方案'}</p><div className="progress"><i style={{width:`${progress}%`}}/></div><div className="search-stats"><MiniMetric label="候选方案" value={Math.round(512*progress/100)} unit="/ 512"/><MiniMetric label="已评估" value={Math.round(286*progress/100)} unit="组"/><MiniMetric label="满足 SLO" value={Math.round(58*progress/100)} unit="组"/><MiniMetric label="当前最优" value={progress<35?'—':`#${Math.max(1,Math.round(183*progress/100))}`} unit="Solution"/></div><div className="stage-flow">{stages.map(x=><div key={x} className={`${stages.indexOf(x)<stages.indexOf(stage)?'done':''} ${x===stage?'active':''}`}><i>{stages.indexOf(x)<stages.indexOf(stage)?<Icon name="check" size={14}/>:stages.indexOf(x)+1}</i><span>{stageText[x]}</span></div>)}</div></div></div>;
+return <div className="page result-page"><div className="result-hero"><div><span className="success-label"><Icon name="check" size={14}/>PLANNING COMPLETED</span><h2>推荐方案 · Solution #183</h2><p>{s.name} · 满足全部 SLO 与资源约束 · 综合评分 92.8</p></div><div className="hero-score"><strong>92.8</strong><span>综合评分</span></div><div className="hero-kpis"><div><small>TTFT P95</small><b>{s.ttftResult} <i>ms</i></b></div><div><small>TPOT P95</small><b>{s.tpotResult} <i>ms</i></b></div><div><small>吞吐</small><b>{s.throughputResult.toFixed(1)} <i>M tok/s</i></b></div><span className="pass-pill">ALL SLO PASS</span></div></div><div className="result-flow"><section className="result-section"><ResultSectionHead index="01" eyebrow="RECOMMENDED PLAN" title="推荐规划方案" desc="明确实例部署、调度路由、KV 资源池和网络数据流配置。"/><Plan s={s}/></section><section className="result-section"><ResultSectionHead index="02" eyebrow="PERFORMANCE VALIDATION" title="方案性能表现" desc="验证服务性能目标，并给出各类资源利用率和运行余量。"/><Performance s={s}/></section><section className="result-section"><ResultSectionHead index="03" eyebrow="BOTTLENECK & ALTERNATIVES" title="瓶颈与寻优结论" desc="定位主要瓶颈、分析参数敏感性，并保留可行候选方案对比。"/><Bottleneck s={s}/></section></div></div>}
+
+function ResultSectionHead({index,eyebrow,title,desc}:{index:string;eyebrow:string;title:string;desc:string}){return <div className="result-section-head"><span>{index}</span><div><small>{eyebrow}</small><h2>{title}</h2><p>{desc}</p></div></div>}
 
 function Plan({s}:{s:(typeof scenarios)[ScenarioKey]}){
   const hbmTotal=s.gpuCount*64/1024
