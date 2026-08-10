@@ -78,6 +78,7 @@ export interface Scenario {
   throughputResult: number
   maxQps: number
   maxConcurrency: number
+  sloAttainmentRate: number
   kvHitRate: number
   modelInputs?: ModelWorkloadInput[]
 }
