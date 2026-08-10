@@ -76,12 +76,12 @@ function App() {
       <div className="workspace-tabs">
         <button className={workspace==='overview'?'active':''} onClick={()=>setWorkspace('overview')}>工作流总览</button>
         <button className={workspace==='input'?'active':''} onClick={()=>setWorkspace('input')}>输入配置</button>
-        <button className={workspace==='optimization'?'active':''} onClick={()=>setWorkspace('optimization')}>仿真寻优</button>
+        <button className={workspace==='optimization'?'active':''} onClick={()=>setWorkspace('optimization')}>仿真规划</button>
         <button className={workspace==='results'?'active':''} onClick={()=>stage==='COMPLETED'&&setWorkspace('results')}>规划结果 {stage==='COMPLETED'&&<i/>}</button>
       </div>
       <div className="content-scroll" ref={contentScroll}>
         {workspace==='overview' && <WorkflowOverview onStart={()=>setWorkspace('input')}/>} 
-        {workspace==='input' && <UnifiedInput scenarioKey={scenarioKey}/>} 
+        {workspace==='input' && <UnifiedInput scenarioKey={scenarioKey} onProceed={()=>setWorkspace('optimization')}/>}
         {workspace==='optimization' && <OptimizationWorkspace scenarioKey={scenarioKey} stage={stage} progress={progress} scale={scale} setScale={setScale} onStart={startSimulation} onViewResults={()=>setWorkspace('results')}/>}
         {workspace==='results' && <Results stage={stage} progress={progress} scenarioKey={scenarioKey}/>}
       </div>
@@ -106,7 +106,7 @@ function WorkflowOverview({onStart}:{onStart:()=>void}){
   </div>
 }
 
-function UnifiedInput({scenarioKey}:{scenarioKey:ScenarioKey}){
+function UnifiedInput({scenarioKey,onProceed}:{scenarioKey:ScenarioKey;onProceed:()=>void}){
   const s=scenarios[scenarioKey]
   const models=getModelInputs(s)
   const [activeModel,setActiveModel]=useState(0)
@@ -129,6 +129,7 @@ function UnifiedInput({scenarioKey}:{scenarioKey:ScenarioKey}){
       <Card title="03 · 硬件与资源拓扑" subtitle="NODE · SUPERNODE · MEMORY FABRIC · HIERARCHICAL KV STORAGE" icon="chip"><div className="hardware-resource-bar"><Metric icon="chip" label="计算资源" value={`${s.nodes}`} unit={`节点 · ${s.gpuCount} 卡`}/><Metric icon="database" label="L0 · HBM" value={hbmTB} unit="TB · 64 GB/卡"/><Metric icon="layers" label="L1 · DDR Pool" value={`${s.ddrTB}`} unit="TB · 跨节点"/><Metric icon="database" label="L2 · Local SSD" value={`${s.localSsdTB}`} unit="TB · 双集群"/><Metric icon="database" label="L3 · Remote SSD" value={`${s.remoteSsdTB}`} unit="TB · 跨集群"/><Metric icon="network" label="互联资源池" value="4" unit="Rails · Dual Plane"/></div><InputNetworkTopology scenario={s}/></Card>
       <Card title="规划目标与约束" subtitle="OBJECTIVES & CONSTRAINTS" icon="target"><div className="goal-strip"><Objective label="TTFT P95" value={`${s.ttftTarget}`} unit="ms"/><Objective label="TPOT P95" value={`${s.tpotTarget}`} unit="ms"/><Objective label="目标吞吐" value={formatThroughput(s.throughputTarget)} unit="M token/s"/><Objective label="设备上限" value={`${s.gpuCount}`} unit="Cards"/></div></Card>
     </div>
+    <div className="workflow-bottom input-next-action"><div><span>NEXT STEP</span><b>输入配置已完成，可进入方案仿真与规划。</b></div><button onClick={onProceed}>进入仿真规划 <Icon name="arrow" size={15}/></button></div>
   </div>
 }
 
@@ -293,9 +294,7 @@ const bottleneckProfiles={
 
 function Bottleneck({s}:{s:(typeof scenarios)[ScenarioKey]}){
   const profile=bottleneckProfiles[s.key]
-  const cardStep=Math.max(8,Math.round(s.gpuCount*.125/8)*8)
-  const rows=[['推荐方案','PASS',s.gpuCount,'***',s.throughputResult.toFixed(2),'综合最优'],['最小资源','PASS',Math.max(8,s.gpuCount-cardStep),'***',(s.throughputResult*.84).toFixed(2),'资源最少'],['最大吞吐','PASS',s.gpuCount+cardStep*2,'***',(s.throughputResult*1.25).toFixed(2),'吞吐最高']]
-  return <div><div className="grid bottleneck-grid single"><Card title="增量投入方向与预期收益" subtitle="INVESTMENT PRIORITY / EXPECTED GAIN" icon="alert"><BottleneckPath s={s}/><div className="bottleneck-evidence"><span><small>资源压力</small><b>{profile.signal}</b></span><span><small>性能增长限制</small><b>{profile.mechanism}</b></span><span><small>投入建议</small><b>{profile.judgement}</b></span></div><div className="bottleneck-remediation">{profile.actions.map((action,i)=><div key={action[0]}><span>0{i+1}</span><div><small>增量投入方案</small><b>{action[0]}</b><p>{action[1]}</p></div><div><small>预期收益</small><strong>{action[2]}</strong><em>{action[3]}</em></div></div>)}</div><div className="bottleneck-secondary"><span>次级优化方向</span><b>{s.bottleneckSub}</b><i>{profile.secondary}</i></div></Card></div><Card title="Top-K 候选方案" subtitle="FEASIBLE SOLUTIONS" icon="layers"><div className="candidate-table"><div><span>方案</span><span>SLO</span><span>GPU/NPU</span><span>成本</span><span>吞吐</span><span>主要特点</span></div>{rows.map((r,i)=><div className={i===0?'recommended':''} key={String(r[0])}><b>{i===0&&<i>★</i>}{r[0]}</b><span className="pass">{r[1]}</span><span>{r[2]}</span><span>{r[3]}</span><strong>{r[4]} M tok/s</strong><span>{r[5]}</span></div>)}</div></Card></div>
+  return <div><div className="grid bottleneck-grid single"><Card title="增量投入方向与预期收益" subtitle="INVESTMENT PRIORITY / EXPECTED GAIN" icon="alert"><BottleneckPath s={s}/><div className="bottleneck-evidence"><span><small>资源压力</small><b>{profile.signal}</b></span><span><small>性能增长限制</small><b>{profile.mechanism}</b></span><span><small>投入建议</small><b>{profile.judgement}</b></span></div><div className="bottleneck-remediation">{profile.actions.map((action,i)=><div key={action[0]}><span>0{i+1}</span><div><small>增量投入方案</small><b>{action[0]}</b><p>{action[1]}</p></div><div><small>预期收益</small><strong>{action[2]}</strong><em>{action[3]}</em></div></div>)}</div><div className="bottleneck-secondary"><span>次级优化方向</span><b>{s.bottleneckSub}</b><i>{profile.secondary}</i></div></Card></div></div>
 }
 
 function BottleneckPath({s}:{s:Scenario}){const profile=bottleneckProfiles[s.key];const nodes=[{label:'Prefill',value:profile.prefillP95,average:profile.prefill,type:'compute'},{label:'Decode',value:profile.decodeP95,average:profile.decode,type:'compute'},{label:'HBM',value:profile.hbmP95,average:profile.hbm,type:'storage'},{label:'DDR',value:profile.ddrP95,average:profile.ddr,type:'storage'},{label:'SSD I/O',value:profile.ssdP95,average:profile.ssd,type:'storage'},{label:'Fabric',value:profile.fabricP95,average:profile.fabric,type:'network'}] as const;return <div className="bottleneck-visual"><div className="bottleneck-callout"><span>PRIORITY OPTIMIZATION</span><b>{s.bottleneck}</b><small>柱高统一为峰值窗口 P95 利用率；柱内小字为全场景加权平均</small><div className="bottleneck-type-legend"><span className="compute">计算</span><span className="network">网络带宽</span><span className="storage">存储</span></div></div><div className="bottleneck-path">{nodes.map((x,i)=><div key={x.label} className={`resource-${x.type} ${x.label===profile.active?'active':''}`}><span>{x.label}</span><small className="resource-kind">均值 {x.average}%</small><b>{x.value}%</b><i><em style={{height:`${Math.min(100,x.value)}%`}}/></i>{i<nodes.length-1&&<u/>}</div>)}</div></div>}
