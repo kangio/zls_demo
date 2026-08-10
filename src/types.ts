@@ -1,6 +1,60 @@
 export type ScenarioKey = 'rag' | 'long' | 'coding'
 export type Stage = 'IDLE' | 'CHECKING' | 'SIMULATING' | 'OPTIMIZING' | 'VALIDATING' | 'COMPLETED'
 
+export interface TopologyDevice {
+  id: string
+  type: 'compute' | 'leaf' | 'spine'
+  name: string
+  clusterId: 'cluster-a' | 'cluster-b' | 'fabric'
+  plane?: 'A' | 'B'
+  rackId?: string
+  gpuCount?: number
+  nodeKind?: 'standard' | 'supernode'
+}
+
+export interface TopologyNic {
+  id: string
+  ownerId: string
+  rail: number
+  plane: 'A' | 'B'
+  bandwidthGbps: number
+  protocol: 'RoCE' | 'IB' | 'UB'
+}
+
+export interface TopologyLink {
+  id: string
+  source: string
+  target: string
+  bandwidthGbps: number
+  latencyUs: number
+  protocol: 'RoCE' | 'IB' | 'UB'
+  rail: number
+  plane: 'A' | 'B'
+}
+
+export interface TopologyConfiguration {
+  acceleratorsPerNode: number
+  acceleratorInterconnect: 'HCCS'
+  hccsBandwidthGBs: number
+  hostBus: 'PCIe 5.0'
+  hostBusBandwidthGBs: number
+  nicsPerNode: number
+  nicProtocol: 'RDMA/RoCE'
+  nicBandwidthGbps: number
+  leafUplinkBandwidthGbps: number
+  localStorageProtocol: 'PCIe/NVMe'
+  localStorageBandwidthGBs: number
+  remoteStorageProtocol: 'NVMe-oF/RDMA'
+  remoteStorageBandwidthGBs: number
+}
+
+export interface NetworkTopology {
+  devices: TopologyDevice[]
+  nics: TopologyNic[]
+  links: TopologyLink[]
+  configuration: TopologyConfiguration
+}
+
 export interface ModelWorkloadInput {
   id: string
   label: string
@@ -40,6 +94,7 @@ export interface Scenario {
   gpuCount: number
   nodes: number
   clusterNodes?: [number, number]
+  networkTopology: NetworkTopology
   peak: number
   average: number
   inputTokens: number

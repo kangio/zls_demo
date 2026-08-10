@@ -1,10 +1,68 @@
-import type { Scenario, ScenarioKey } from '../types'
+import type { NetworkTopology, Scenario, ScenarioKey, TopologyConfiguration, TopologyDevice, TopologyLink, TopologyNic } from '../types'
 
 const baseLoad = [36,31,28,25,24,30,46,67,82,91,86,74,68,72,78,84,95,100,92,81,70,59,49,41]
 
+const createNetworkTopology = (clusterNodes: [number, number]): NetworkTopology => {
+  const devices: TopologyDevice[] = []
+  const nics: TopologyNic[] = []
+  const links: TopologyLink[] = []
+  const configuration: TopologyConfiguration = {
+    acceleratorsPerNode:8,
+    acceleratorInterconnect:'HCCS',
+    hccsBandwidthGBs:200,
+    hostBus:'PCIe 5.0',
+    hostBusBandwidthGBs:48,
+    nicsPerNode:1,
+    nicProtocol:'RDMA/RoCE',
+    nicBandwidthGbps:400,
+    leafUplinkBandwidthGbps:800,
+    localStorageProtocol:'PCIe/NVMe',
+    localStorageBandwidthGBs:16,
+    remoteStorageProtocol:'NVMe-oF/RDMA',
+    remoteStorageBandwidthGBs:12
+  }
+  const planes = ['A'] as const
+
+  planes.forEach((plane) => {
+    for (let index = 1; index <= 2; index += 1) {
+      devices.push({ id: `spine-${plane.toLowerCase()}-${index}`, type: 'spine', name: `SPINE ${plane}${index}`, clusterId: 'fabric', plane })
+    }
+  })
+
+  clusterNodes.forEach((nodeCount, clusterIndex) => {
+    const clusterId = clusterIndex === 0 ? 'cluster-a' : 'cluster-b'
+    const clusterCode = clusterIndex === 0 ? 'A' : 'B'
+    const rackCount = Math.max(2, Math.ceil(nodeCount / 16))
+
+    for (let rackIndex = 1; rackIndex <= rackCount; rackIndex += 1) {
+      planes.forEach((plane) => {
+        const leafId = `leaf-${clusterCode.toLowerCase()}-${rackIndex}-${plane.toLowerCase()}`
+        devices.push({ id: leafId, type: 'leaf', name: `LEAF ${clusterCode}${rackIndex}-${plane}`, clusterId, plane, rackId: `${clusterCode}-R${rackIndex}` })
+        for (let spineIndex = 1; spineIndex <= 2; spineIndex += 1) {
+          links.push({ id: `${leafId}-spine-${spineIndex}`, source: leafId, target: `spine-${plane.toLowerCase()}-${spineIndex}`, bandwidthGbps: 800, latencyUs: 1.2, protocol: 'RoCE', rail: plane === 'A' ? 0 : 1, plane })
+        }
+      })
+    }
+
+    for (let nodeIndex = 1; nodeIndex <= nodeCount; nodeIndex += 1) {
+      const nodeId = `node-${clusterCode.toLowerCase()}-${String(nodeIndex).padStart(3, '0')}`
+      const rackIndex = Math.min(rackCount,Math.max(1,Math.ceil(nodeIndex/(nodeCount/rackCount))))
+      devices.push({ id: nodeId, type: 'compute', name: `NODE ${clusterCode}${String(nodeIndex).padStart(3, '0')}`, clusterId, rackId: `${clusterCode}-R${rackIndex}`, gpuCount: 8, nodeKind: clusterIndex === 0 ? 'standard' : 'supernode' })
+      ;[0].forEach((rail) => {
+        const plane = 'A' as const
+        const nicId = `${nodeId}-nic-r${rail}`
+        nics.push({ id: nicId, ownerId: nodeId, rail, plane, bandwidthGbps: 400, protocol: 'RoCE' })
+        links.push({ id: `${nicId}-link`, source: nodeId, target: `leaf-${clusterCode.toLowerCase()}-${rackIndex}-${plane.toLowerCase()}`, bandwidthGbps: 400, latencyUs: 0.8, protocol: 'RoCE', rail, plane })
+      })
+    }
+  })
+
+  return { devices, nics, links, configuration }
+}
+
 export const scenarios: Record<ScenarioKey, Scenario> = {
   rag: {
-    key: 'rag', name: '轻量单模型 Agent', short: '小集群部署、共享上下文复用与轻量多轮处理', model: 'Qwen3-32B', modelSize: '32B Dense', framework: 'vLLM 0.23', runtime: 'CUDA 13.1', comm: 'NCCL 2.30', gpu: 'A5 64GB', gpuCount: 48, nodes: 6, clusterNodes:[3,3],
+    key: 'rag', name: '轻量单模型 Agent', short: '小集群部署、共享上下文复用与轻量多轮处理', model: 'Qwen3-32B', modelSize: '32B Dense', framework: 'vLLM 0.23', runtime: 'CUDA 13.1', comm: 'NCCL 2.30', gpu: 'A5 64GB', gpuCount: 48, nodes: 6, clusterNodes:[3,3], networkTopology:createNetworkTopology([3,3]),
     peak: 320, average: 146, inputTokens: 0.58, outputTokens: 0.14, turns: 6.2, toolCalls: 2.4, reuse: 63, prefixGrowth: 760, load: baseLoad.map((n,i)=>Math.max(18,n-(i%5)*6)),
     requestMix: [{label:'知识检索问答',share:46,prefix:'6K',input:'10K',output:'1.1K'}, {label:'结构化信息分析',share:34,prefix:'12K',input:'18K',output:'1.8K'}, {label:'综合结果生成',share:20,prefix:'18K',input:'28K',output:'2.4K'}],
     prefixHotness: {top:'Top 12%',contribution:70,distribution:'Zipf α 1.08'},
@@ -19,7 +77,7 @@ export const scenarios: Record<ScenarioKey, Scenario> = {
     throughputTarget: 0.55, throughputResult: 0.63, maxQps: 360, maxConcurrency: 640, sloAttainmentRate: 99.2, kvHitRate: 82.5
   },
   long: {
-    key: 'long', name: '规模化单模型 Agent', short: '大规模部署、长上下文处理与深度多轮推理', model: 'DeepSeek-V3', modelSize: '671B / 37B Active', framework: 'MindIE 2.0', runtime: 'CANN 8.0', comm: 'HCCL 8.0', gpu: 'A5 64GB', gpuCount: 1024, nodes: 128, clusterNodes:[64,64],
+    key: 'long', name: '规模化单模型 Agent', short: '大规模部署、长上下文处理与深度多轮推理', model: 'DeepSeek-V3', modelSize: '671B / 37B Active', framework: 'MindIE 2.0', runtime: 'CANN 8.0', comm: 'HCCL 8.0', gpu: 'A5 64GB', gpuCount: 1024, nodes: 128, clusterNodes:[64,64], networkTopology:createNetworkTopology([64,64]),
     peak: 4300, average: 2180, inputTokens: 29.8, outputTokens: 2.8, turns: 14.6, toolCalls: 1.4, reuse: 47, prefixGrowth: 2860, load: baseLoad.map((n,i)=>Math.max(18, n-(i%4)*5)),
     requestMix: [{label:'长文档信息抽取',share:35,prefix:'16K',input:'48K',output:'2K'}, {label:'多文档关联比对',share:45,prefix:'32K',input:'64K',output:'3K'}, {label:'深层上下文推理',share:20,prefix:'48K',input:'96K',output:'4K'}],
     prefixHotness: {top:'Top 15%',contribution:68,distribution:'Zipf α 0.96'},
@@ -34,7 +92,7 @@ export const scenarios: Record<ScenarioKey, Scenario> = {
     throughputTarget: 32.0, throughputResult: 34.2, maxQps: 4680, maxConcurrency: 6144, sloAttainmentRate: 98.7, kvHitRate: 74.8
   },
   coding: {
-    key: 'coding', name: '多模型协同 Agent', short: '大规模双模型分工、工具密集执行与跨模型协同', model: 'Qwen3-32B + DeepSeek-Coder-V2', modelSize: '32B + 236B / 21B Active', framework: 'vLLM 0.23', runtime: 'CUDA 13.1', comm: 'NCCL 2.30', gpu: 'A5 64GB', gpuCount: 896, nodes: 112, clusterNodes:[40,72],
+    key: 'coding', name: '多模型协同 Agent', short: '大规模双模型分工、工具密集执行与跨模型协同', model: 'Qwen3-32B + DeepSeek-Coder-V2', modelSize: '32B + 236B / 21B Active', framework: 'vLLM 0.23', runtime: 'CUDA 13.1', comm: 'NCCL 2.30', gpu: 'A5 64GB', gpuCount: 896, nodes: 112, clusterNodes:[40,72], networkTopology:createNetworkTopology([40,72]),
     peak: 7600, average: 3910, inputTokens: 15.6, outputTokens: 8.9, turns: 11.2, toolCalls: 7.8, reuse: 61, prefixGrowth: 1740, load: baseLoad.map((n,i)=>Math.min(100,n+(i%3)*4)),
     requestMix: [{label:'任务理解与规划',share:38,prefix:'12K',input:'20K',output:'2K'}, {label:'工具执行与反馈',share:44,prefix:'24K',input:'36K',output:'4K'}, {label:'复杂结果生成',share:18,prefix:'40K',input:'64K',output:'6K'}],
     prefixHotness: {top:'Top 8%',contribution:71,distribution:'Zipf α 1.12'},
