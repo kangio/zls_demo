@@ -137,9 +137,9 @@ function AgentPlanningDemo({onToggle}:{onToggle:()=>void}){
         <button className="agent-simulate-button" onClick={start}><Icon name="play" size={18}/><span>{phase==='running'?'重新开始仿真规划':'开始仿真规划'}<small>{agents.length} AGENTS · 2 MODELS · 7 DIMENSIONS</small></span></button>
       </aside>
       <section className="agent-stage">
-        {phase==='steps'?<AgentFlowSteps/>:<AgentSimulation agents={agents} progress={progress} done={phase==='done'} onResults={()=>setShowResults(true)}/>} 
+        {phase==='steps'?<AgentFlowSteps/>:<AgentSimulation agents={agents} progress={progress} done={phase==='done'} onResults={()=>setShowResults(true)}/>}
       </section>
-      {openAgent&&<AgentSettingsDrawer agent={agents.find(agent=>agent.id===openAgent)!} onClose={()=>setOpenAgent(null)} onUpdate={updateAgent}/>} 
+      {openAgent&&<AgentSettingsDrawer agent={agents.find(agent=>agent.id===openAgent)!} onClose={()=>setOpenAgent(null)} onUpdate={updateAgent}/>}
       <div className={`agent-result-backdrop ${showResults?'visible':''}`} onClick={()=>setShowResults(false)}/>
       <aside className={`agent-result-drawer ${showResults?'visible':''}`} aria-hidden={!showResults}><div className="agent-result-drawer-head"><div><span>PLANNING OUTPUT</span><h2>联合规划结果</h2></div><button onClick={()=>setShowResults(false)}>×</button></div><div className="agent-result-scroll"><Results stage="COMPLETED" progress={100} scenarioKey="coding" hideTopology agentPlan/></div></aside>
     </main>
