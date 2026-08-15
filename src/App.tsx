@@ -37,6 +37,7 @@ const splitByCluster=(s:Scenario,total:number):[number,number]=>{const [standard
 const formatThroughput=(value:number)=>value<1?value.toFixed(2):value.toFixed(1)
 
 function App() {
+  const [demoMode,setDemoMode] = useState<'classic'|'agent'>('classic')
   const [scenarioKey,setScenarioKey] = useState<ScenarioKey>('rag')
   const [workspace,setWorkspace] = useState<'overview'|'input'|'optimization'|'results'>('overview')
   const [stage,setStage] = useState<Stage>('IDLE')
@@ -63,8 +64,10 @@ function App() {
     },120)
   }
 
+  if(demoMode==='agent') return <AgentPlanningDemo onToggle={()=>setDemoMode('classic')}/>
+
   return <div className="app-shell">
-    <Header/>
+    <Header onToggle={()=>setDemoMode('agent')}/>
     <aside className="sidebar">
       <div className="side-kicker">AGENT 业务案例</div>
       <div className="case-list">{(Object.keys(scenarios) as ScenarioKey[]).map((key,i)=>{const item=scenarios[key];return <button key={key} className={`case-item ${scenarioKey===key?'active':''}`} onClick={()=>{setScenarioKey(key);setStage('IDLE');setProgress(0)}}>
@@ -90,8 +93,153 @@ function App() {
   </div>
 }
 
-function Header(){
-  return <header className="header"><div className="brand-mark"><span/><span/><span/></div><div className="brand"><h1>算存网一体化规划仿真平台</h1><p>INTEGRATED COMPUTING · STORAGE · NETWORK PLANNING SIMULATION PLATFORM</p></div><div className="header-context"><button className="ghost-button"><Icon name="download" size={16}/>导出方案</button></div></header>
+type AgentConfig={id:string;index:string;name:string;role:string;icon:string;color:string;model:string;peak:number;average:number;ttft:number;tpot:number;throughput:string}
+
+const initialAgents:AgentConfig[]=[
+  {id:'insight',index:'AGENT 01',name:'知识洞察 Agent',role:'检索、归纳与可信回答',icon:'database',color:'cyan',model:'Qwen3-32B',peak:1280,average:620,ttft:600,tpot:45,throughput:'0.8M'},
+  {id:'research',index:'AGENT 02',name:'深度研究 Agent',role:'长上下文分析与多步推理',icon:'layers',color:'violet',model:'DeepSeek-V3',peak:860,average:390,ttft:1800,tpot:55,throughput:'5.2M'},
+  {id:'coding',index:'AGENT 03',name:'研发执行 Agent',role:'任务规划、工具调用与代码生成',icon:'cube',color:'green',model:'Qwen3-32B',peak:2460,average:1180,ttft:900,tpot:45,throughput:'3.4M'},
+]
+
+const optimizationDimensions=[
+  ['服务级调度','Agent → 模型路由'],['推理引擎调度','批处理与 Prefill'],['并行策略','TP / DP / EP'],['数据流编排','RDMA 路径与优先级'],['部署拓扑与资源亲和','模型 → 节点放置'],['KV 复用与缓存','HBM 热上下文共享'],['KV 资源池与分层放置','HBM → DDR → SSD']
+]
+
+function AgentPlanningDemo({onToggle}:{onToggle:()=>void}){
+  const [agents,setAgents]=useState(initialAgents)
+  const [openAgent,setOpenAgent]=useState<string|null>(null)
+  const [phase,setPhase]=useState<'steps'|'running'|'done'>('steps')
+  const [progress,setProgress]=useState(0)
+  const [showResults,setShowResults]=useState(false)
+  const timer=useRef<number|null>(null)
+  useEffect(()=>()=>{if(timer.current)window.clearInterval(timer.current)},[])
+  const updateAgent=(id:string,key:keyof AgentConfig,value:string|number)=>setAgents(current=>current.map(agent=>agent.id===id?{...agent,[key]:value}:agent))
+  const start=()=>{
+    if(timer.current)window.clearInterval(timer.current)
+    setShowResults(false);setOpenAgent(null);setPhase('running');setProgress(1)
+    let next=1
+    timer.current=window.setInterval(()=>{
+      next=Math.min(100,next+1)
+      setProgress(next)
+      if(next===100){setPhase('done');if(timer.current)window.clearInterval(timer.current)}
+    },120)
+  }
+  return <div className="agent-demo-shell">
+    <Header onToggle={onToggle}/>
+    <main className="agent-demo-main">
+      <aside className="agent-panel">
+        <div className="agent-panel-title"><span>PLANNING OBJECTS</span><h2>Agent 业务编排</h2><p>选择卡片配置独立模型、负载与 SLO</p></div>
+        <div className="agent-stack">{agents.map(agent=>{const opened=openAgent===agent.id;return <section key={agent.id} className={`agent-card ${agent.color} ${opened?'opened':''}`}>
+          <button className="agent-card-summary" onClick={()=>setOpenAgent(opened?null:agent.id)} aria-expanded={opened}>
+            <span className="agent-card-icon"><Icon name={agent.icon} size={19}/></span><span className="agent-card-copy"><small>{agent.index}</small><b>{agent.name}</b><em>{agent.role}</em></span><span className="agent-card-status"><i/>READY</span><Icon name="arrow" size={15}/>
+          </button>
+        </section>})}</div>
+        <button className="agent-simulate-button" onClick={start}><Icon name="play" size={18}/><span>{phase==='running'?'重新开始仿真规划':'开始仿真规划'}<small>{agents.length} AGENTS · 2 MODELS · 7 DIMENSIONS</small></span></button>
+      </aside>
+      <section className="agent-stage">
+        {phase==='steps'?<AgentFlowSteps/>:<AgentSimulation agents={agents} progress={progress} done={phase==='done'} onResults={()=>setShowResults(true)}/>} 
+      </section>
+      {openAgent&&<AgentSettingsDrawer agent={agents.find(agent=>agent.id===openAgent)!} onClose={()=>setOpenAgent(null)} onUpdate={updateAgent}/>} 
+      <div className={`agent-result-backdrop ${showResults?'visible':''}`} onClick={()=>setShowResults(false)}/>
+      <aside className={`agent-result-drawer ${showResults?'visible':''}`} aria-hidden={!showResults}><div className="agent-result-drawer-head"><div><span>PLANNING OUTPUT</span><h2>联合规划结果</h2></div><button onClick={()=>setShowResults(false)}>×</button></div><div className="agent-result-scroll"><Results stage="COMPLETED" progress={100} scenarioKey="coding" hideTopology agentPlan/></div></aside>
+    </main>
+    <footer className="agent-statusbar"><span><i/>3 个 Agent 配置就绪</span><span>模型池 <b>2 MODELS</b></span><span>规划维度 <b>7 DIMENSIONS</b></span><span className="agent-status-right">{phase==='steps'?'等待启动':phase==='done'?'仿真规划完成':`寻优进行中 · ${progress}%`}</span></footer>
+  </div>
+}
+
+function AgentSettingsDrawer({agent,onClose,onUpdate}:{agent:AgentConfig;onClose:()=>void;onUpdate:(id:string,key:keyof AgentConfig,value:string|number)=>void}){
+  const source=agent.id==='research'?scenarios.long:agent.id==='insight'?scenarios.rag:scenarios.coding.modelInputs![0]
+  const specs=getModelSpecs(source as ModelWorkloadInput)
+  const loadOption=useMemo(()=>({animation:false,grid:{left:28,right:10,top:12,bottom:20},xAxis:{type:'category',data:source.load.map((_,i)=>String(i).padStart(2,'0')),axisLabel:{color:'#587087',interval:3,fontSize:7},axisLine:{lineStyle:{color:'#24364c'}},axisTick:{show:false}},yAxis:{type:'value',max:100,axisLabel:{show:false},splitLine:{lineStyle:{color:'#182a3e'}}},series:[{type:'line',data:source.load,smooth:.35,symbol:'none',lineStyle:{width:2,color:agent.color==='violet'?'#818cf8':agent.color==='green'?'#34d399':'#38bdf8'},areaStyle:{color:'rgba(56,189,248,.12)'}}]}),[agent.color,source])
+  return <><div className="agent-config-backdrop" onClick={onClose}/><aside className="agent-config-drawer"><div className="agent-config-head"><span className={`agent-card-icon ${agent.color}`}><Icon name={agent.icon}/></span><div><small>{agent.index} · AGENT CONFIGURATION</small><h2>{agent.name}</h2><p>{agent.role}</p></div><button onClick={onClose}>×</button></div><div className="agent-config-scroll">
+    <section className="config-section"><div className="config-section-title"><span>01</span><div><b>模型与软件栈</b><small>MODEL PROFILE · RUNTIME</small></div><em>{agent.id==='insight'||agent.id==='coding'?'共享模型服务':'独立模型服务'}</em></div><div className="config-model-hero"><div><small>当前模型</small><strong>{agent.model}</strong><p>{source.modelSize} · {'role' in source?source.role:agent.role}</p></div><label><span>模型选择</span><select value={agent.model} onChange={e=>onUpdate(agent.id,'model',e.target.value)}><option>Qwen3-32B</option><option>DeepSeek-V3</option></select></label></div><div className="config-spec-grid">{specs.slice(0,6).map(spec=><Field key={spec[0]} label={spec[0]} value={spec[1]} unit={spec[2]}/>)}</div><div className="config-stack"><span><small>推理框架</small><b>{source.framework}</b></span><i/><span><small>运行时</small><b>{source.runtime}</b></span><i/><span><small>通信库</small><b>{source.comm}</b></span></div></section>
+    <section className="config-section"><div className="config-section-title"><span>02</span><div><b>业务负载</b><small>REQUEST PROFILE · TOKEN · PREFIX</small></div></div><div className="config-input-grid"><label><span>峰值请求</span><div><input type="number" value={agent.peak} onChange={e=>onUpdate(agent.id,'peak',Number(e.target.value))}/><i>req/s</i></div></label><label><span>平均请求</span><div><input type="number" value={agent.average} onChange={e=>onUpdate(agent.id,'average',Number(e.target.value))}/><i>req/s</i></div></label><label><span>Input Token</span><div><input readOnly value={source.inputTokens}/><i>M tok/s</i></div></label><label><span>Output Token</span><div><input readOnly value={source.outputTokens}/><i>M tok/s</i></div></label></div><div className="config-load"><div><small>24H 请求强度</small><ReactECharts option={loadOption} style={{height:145}}/></div><RequestMixTable scenario={source}/></div><div className="config-prefix"><span><small>共享 Prefix</small><b>{source.reuse}%</b></span><span><small>平均会话</small><b>{source.turns} 轮</b></span><span><small>上下文增长</small><b>+{source.prefixGrowth.toLocaleString()} Token/轮</b></span><span><small>工具调用</small><b>{source.toolCalls} / Task</b></span></div></section>
+    <section className="config-section"><div className="config-section-title"><span>03</span><div><b>SLO 目标</b><small>LATENCY · THROUGHPUT</small></div></div><div className="config-input-grid three"><label><span>TTFT P95</span><div><input type="number" value={agent.ttft} onChange={e=>onUpdate(agent.id,'ttft',Number(e.target.value))}/><i>ms</i></div></label><label><span>TPOT P95</span><div><input type="number" value={agent.tpot} onChange={e=>onUpdate(agent.id,'tpot',Number(e.target.value))}/><i>ms</i></div></label><label><span>目标吞吐</span><div><input value={agent.throughput} onChange={e=>onUpdate(agent.id,'throughput',e.target.value)}/><i>token/s</i></div></label></div></section>
+  </div></aside></>
+}
+
+function AgentFlowSteps(){const steps=[
+  {n:'01',icon:'sliders',title:'配置 Agent',desc:'分别定义三个 Agent 的模型、业务负载和服务目标。',tags:['独立模型','请求负载','SLO 约束']},
+  {n:'02',icon:'activity',title:'联合仿真寻优',desc:'七类决策同时改变服务、模型、资源和数据路径，并持续观察指标反馈。',tags:['七维耦合','指标反馈','候选对比']},
+  {n:'03',icon:'network',title:'生成资源规划',desc:'将模型实例直接映射到同构集群节点，输出算存网部署方案。',tags:['节点放置','同构网络','容量规划']},
+];return <div className="agent-flow-intro"><div className="agent-stage-heading"><span>SINGLE PAGE WORKFLOW</span><h1>多 Agent 联合规划</h1><p>从业务配置到资源落位，在同一视图完成仿真规划闭环。</p><b>点击左侧 Agent 卡片开始配置</b></div><div className="agent-flow-steps">{steps.map((step,i)=><section key={step.n}><span className="flow-step-number">{step.n}</span><div className="flow-step-icon"><Icon name={step.icon} size={24}/></div><small>STEP {step.n}</small><h2>{step.title}</h2><p>{step.desc}</p><div>{step.tags.map(tag=><b key={tag}><Icon name="check" size={12}/>{tag}</b>)}</div>{i<2&&<em><Icon name="arrow" size={18}/></em>}</section>)}</div><div className="agent-flow-note"><Icon name="activity"/><span><b>联动逻辑</b>Agent 负载与 SLO 驱动模型实例规模，七维寻优决定实例参数、缓存层级、节点放置和网络数据路径。</span></div></div>}
+
+function AgentSimulation({agents,progress,done,onResults}:{agents:AgentConfig[];progress:number;done:boolean;onResults:()=>void}){
+  const wave=Math.sin(progress*.18)
+  const kvHit=Math.min(79,Math.round(51+progress*.28+wave*2))
+  const qwenInstances=12+Math.round(progress*.08),deepseekInstances=20+Math.round(progress*.16)
+  const qwenTtft=Math.max(430,Math.round(720-progress*2.9+wave*18)),qwenTpot=Math.max(31,Math.round(47-progress*.16-wave*2)),qwenThroughput=(7.2+progress*.026+wave*.12).toFixed(1)
+  const dsTtft=Math.max(780,Math.round(1480-progress*7+wave*42)),dsTpot=Math.max(41,Math.round(69-progress*.28-wave*3)),dsThroughput=(11.2+progress*.054+wave*.2).toFixed(1)
+  const phase=done?'规划仿真完成':progress<28?'生成与筛选候选配置':progress<68?'实例映射与资源联调':'SLO 校验与方案收敛'
+  const dimensionValues=[
+    `路由 ${progress<38?'Load-aware':'Cache-aware'} · 准入 ${Math.round(820+progress*3.1)} req/s`,
+    `Batch ${96+Math.round(progress*.32)} · Chunk ${progress<52?'8K':'4K'} · Queue ${Math.max(6,18-Math.round(progress*.11))}ms`,
+    `Qwen TP8/DP${Math.max(2,Math.round(qwenInstances/8))} · DS TP16/EP8`,
+    `RDMA P${progress<46?'1':'0'} · Slice ${progress<60?'4':'2'}MB · Rail 1`,
+    `Qwen N001–N040 · DS N041–N${96+Math.round(progress*.16)}`,
+    `Prefix ${kvHit}% · Cost-LRU · Block ${progress<55?'32':'16'}K`,
+    `HBM ${(13.4+progress*.041).toFixed(1)}T · DDR ${Math.round(132+progress*.44)}T · SSD ${Math.round(248+progress*1.36)}T`,
+  ]
+  const kpiBar=(label:string,value:string,width:number,tone:string,target:string)=><i className={tone}><span>{label}<small>{target}</small></span><b>{value}</b><em><u style={{width:`${Math.max(6,Math.min(100,width))}%`}}/></em></i>
+  return <div className={`agent-simulation ${done?'done':''}`}>
+    <div className="simulation-head"><div><span>JOINT PLANNING SIMULATION</span><h1>{phase}</h1></div><div className="simulation-head-numbers"><span><small>当前候选</small><b>#{String(Math.max(1,Math.round(progress*1.83))).padStart(3,'0')}</b></span><strong>{progress}<small>%</small></strong></div></div>
+    <div className="simulation-canvas">
+      <div className="planning-live-grid"><aside className="dimension-map"><div className="dimension-map-head"><span>7D PARAMETERS</span><b>动态规划参数</b></div>{optimizationDimensions.map((dimension,i)=><div key={dimension[0]} className={`dimension-item dimension-${i+1}`}><i>{i+1}</i><span><b>{dimension[0]}</b><em className="dimension-scope">{dimension[1]}</em><small>{dimensionValues[i]}</small></span></div>)}</aside><div className="live-topology">
+        <div className="sim-layer agent-layer"><label>01 · BUSINESS DEMAND & SLO</label><div>{agents.map(agent=>{const actualTtft=agent.model==='DeepSeek-V3'?dsTtft:qwenTtft;const actualTpot=agent.model==='DeepSeek-V3'?dsTpot:qwenTpot;const passed=progress>=12&&actualTtft<=agent.ttft&&actualTpot<=agent.tpot;return <span key={agent.id} className={`sim-agent ${agent.color} ${passed?'slo-pass':'slo-fail'}`}><Icon name={agent.icon} size={15}/><b>{agent.name.replace(' Agent','')}</b><small>需求 {agent.peak} req/s · {agent.throughput} token/s</small><u>TTFT &lt; {agent.ttft} ms · TPOT &lt; {agent.tpot} ms</u></span>})}</div></div>
+        <svg className="agent-model-routes" viewBox="0 0 700 58" preserveAspectRatio="none" aria-label="Agent 到模型服务的请求路由"><path className="qwen-route" d="M115 0 C115 28 225 22 225 58M585 0 C585 28 225 22 225 58"/><path className="deepseek-route" d="M350 0 C350 28 480 22 480 58"/><circle className="packet" r="3"><animateMotion dur="1.5s" repeatCount="indefinite" path="M115 0 C115 28 225 22 225 58"/></circle><circle className="packet" r="3"><animateMotion begin="-.7s" dur="1.7s" repeatCount="indefinite" path="M585 0 C585 28 225 22 225 58"/></circle><circle className="packet deepseek-packet" r="3"><animateMotion begin="-.3s" dur="1.6s" repeatCount="indefinite" path="M350 0 C350 28 480 22 480 58"/></circle></svg>
+        <div className="sim-layer model-layer"><label>02 · MODEL PERFORMANCE</label><div><span className="sim-model model-0"><Icon name="cube" size={17}/><b>Qwen3-32B</b><small>Agent 01 + Agent 03 · {qwenInstances} Instances · TP8</small><div className="model-live-kpis">{kpiBar('TTFT',`${qwenTtft}ms`,28+(qwenTtft-430)/290*62,'latency','P95 · ↓')}{kpiBar('TPOT',`${qwenTpot}ms`,28+(qwenTpot-31)/16*62,'latency','P95 · ↓')}{kpiBar('吞吐',`${qwenThroughput}M`,28+(Number(qwenThroughput)-7.2)/2.6*62,'throughput','TOK/S · ↑')}</div></span><span className="sim-model model-1"><Icon name="cube" size={17}/><b>DeepSeek-V3</b><small>Agent 02 · {deepseekInstances} Instances · EP8</small><div className="model-live-kpis">{kpiBar('TTFT',`${dsTtft}ms`,28+(dsTtft-780)/700*62,'latency','P95 · ↓')}{kpiBar('TPOT',`${dsTpot}ms`,28+(dsTpot-41)/28*62,'latency','P95 · ↓')}{kpiBar('吞吐',`${dsThroughput}M`,28+(Number(dsThroughput)-11.2)/5.4*62,'throughput','TOK/S · ↑')}</div></span></div><div className="engine-tunables"><span>Batch <b>{96+Math.round(progress*.32)}</b></span><span>Chunk <b>{progress<52?'8K':'4K'}</b></span><span>Prefix Hit <b>{kvHit}%</b></span><span>P/D <b>{52+Math.round(progress*.12)}:{48-Math.round(progress*.12)}</b></span></div></div>
+        <div className="model-fabric-links"><i/><i/></div>
+        <DetailedSimulationTopology progress={progress}/>
+      </div></div>
+    </div>
+    <div className="simulation-footer"><div className="sim-progress"><i style={{width:`${progress}%`}}/></div><span>{done?'512 个候选完成仿真 · 58 个方案满足三个 Agent 的 SLO · 当前综合评分 92.8':`候选 ${Math.round(512*progress/100)} / 512 · SLO 通过 ${Math.round(58*progress/100)} · 节点映射持续变动`}</span>{done&&<button onClick={onResults}>查看规划结果 <Icon name="arrow" size={15}/></button>}</div>
+  </div>
+}
+
+function DetailedSimulationTopology({progress}:{progress:number}){
+  const qwenTotal=12+Math.round(progress*.08)
+  const dsTotal=20+Math.round(progress*.16)
+  const qwenPrefill=progress>=100?12:Math.max(7,Math.min(qwenTotal-3,Math.round(qwenTotal*(.52+progress*.0008+Math.sin(progress*.18)*.035))))
+  const qwenDecode=qwenTotal-qwenPrefill
+  const dsPrefill=progress>=100?20:Math.max(11,Math.min(dsTotal-5,Math.round(dsTotal*(.54+Math.sin(progress*.14+.8)*.025))))
+  const dsDecode=dsTotal-dsPrefill
+  const qwenNodes=qwenTotal*2,dsNodes=dsTotal*2
+  const qwenShare=qwenNodes/112,dsShare=dsNodes/112
+  const remoteUsed=190+Math.round(progress*.7),remoteCapacity=384
+  const nodeRange=(start:number,count:number)=>`N${String(start).padStart(3,'0')}–N${String(start+count-1).padStart(3,'0')}`
+  const qwenPrefillNodes=qwenPrefill*2,qwenDecodeNodes=qwenDecode*2,dsPrefillNodes=dsPrefill*2,dsDecodeNodes=dsDecode*2
+  const qwenDecodeStart=1+qwenPrefillNodes,dsPrefillStart=qwenDecodeStart+qwenDecodeNodes,dsDecodeStart=dsPrefillStart+dsPrefillNodes
+  const servers=[
+    {x:32,node:nodeRange(1,qwenPrefillNodes),model:'QWEN3-32B',role:`PREFILL × ${qwenPrefill}`,instances:qwenPrefill,maxInstances:12,kind:'prefill',tone:'qwen',util:58+progress*.2+Math.sin(progress*.12)*4,ddr:28+Math.round(progress*.12),ddrCap:48,ssd:32+Math.round(progress*.18),ssdCap:64},
+    {x:228,node:nodeRange(qwenDecodeStart,qwenDecodeNodes),model:'QWEN3-32B',role:`DECODE × ${qwenDecode}`,instances:qwenDecode,maxInstances:8,kind:'decode',tone:'qwen',util:64+progress*.17+Math.sin(progress*.11+1)*5,ddr:19+Math.round(progress*.09),ddrCap:32,ssd:24+Math.round(progress*.14),ssdCap:48},
+    {x:424,node:nodeRange(dsPrefillStart,dsPrefillNodes),model:'DEEPSEEK-V3',role:`PREFILL × ${dsPrefill}`,instances:dsPrefill,maxInstances:20,kind:'prefill',tone:'deepseek',util:56+progress*.21+Math.sin(progress*.1+2)*4,ddr:45+Math.round(progress*.2),ddrCap:80,ssd:58+Math.round(progress*.35),ssdCap:128},
+    {x:620,node:nodeRange(dsDecodeStart,dsDecodeNodes),model:'DEEPSEEK-V3',role:`DECODE × ${dsDecode}`,instances:dsDecode,maxInstances:16,kind:'decode',tone:'deepseek',util:66+progress*.18+Math.sin(progress*.13+3)*5,ddr:36+Math.round(progress*.16),ddrCap:64,ssd:44+Math.round(progress*.28),ssdCap:96},
+  ]
+  return <div className="sim-network detailed"><label>03 · HOMOGENEOUS LEAF–SPINE FABRIC · SERVER RESOURCE PLACEMENT</label><svg viewBox="0 0 820 565" role="img" aria-label="同构 Leaf Spine 网络以及服务器内部模型实例 NPU HBM HCCS DDR NIC SSD 连接关系">
+    <g className="sim-fabric-links">{[116,312,508,704].flatMap((leafX,i)=>[330,490].map((spineX,j)=><path key={`${i}-${j}`} d={`M${spineX} 46 C${spineX} 70 ${leafX} 65 ${leafX} 92`}/>))}</g>
+    <g className="sim-spines"><rect x="270" y="16" width="120" height="30" rx="5"/><rect x="430" y="16" width="120" height="30" rx="5"/><text x="330" y="35">SPINE 01 · 800G</text><text x="490" y="35">SPINE 02 · 800G</text></g>
+    <g className="sim-leaves">{[116,312,508,704].map((x,i)=><g key={x}><rect x={x-55} y="92" width="110" height="27" rx="4"/><text x={x} y="109">LEAF {String(i+1).padStart(2,'0')} · 48P</text></g>)}</g>
+    <g className="sim-cluster-shells"><rect x="12" y="133" width="796" height="355" rx="7"/><text x="26" y="151">CLUSTER 01 · 112 HOMOGENEOUS NODES · 896 × A5 64GB</text></g>
+    <g className="model-node-allocation"><rect className="allocation-base" x="32" y="157" width="756" height="8" rx="4"/><rect className="allocation-qwen-prefill" x="32" y="157" width={756*qwenPrefillNodes/112} height="8" rx="4"/><rect className="allocation-qwen-decode" x={32+756*qwenPrefillNodes/112} y="157" width={756*qwenDecodeNodes/112} height="8"/><rect className="allocation-deepseek-prefill" x={32+756*qwenShare} y="157" width={756*dsPrefillNodes/112} height="8"/><rect className="allocation-deepseek-decode" x={32+756*qwenShare+756*dsPrefillNodes/112} y="157" width={756*dsDecodeNodes/112} height="8"/><text x={32+756*qwenShare/2} y="164">QWEN · {qwenNodes}N · P{qwenPrefill}/D{qwenDecode}</text><text x={32+756*qwenShare+756*dsShare/2} y="164">DEEPSEEK · {dsNodes}N · P{dsPrefill}/D{dsDecode}</text></g>
+    <g className="sim-leaf-node-links">{servers.map((server,i)=><path key={server.x} d={`M${[116,312,508,704][i]} 119 V170 H${server.x+84}`}/>)}</g>
+    <g className="sim-server-cards">{servers.map((server,i)=><g key={server.x} className={`${server.tone} ${server.kind}`}>
+      <rect className="server-shell" x={server.x} y="170" width="168" height="300" rx="6"/><text className="server-id" x={server.x+10} y="188">NODE {server.node}</text><text className="server-model" x={server.x+10} y="204">{server.model}</text>
+      <rect className="instance-block" x={server.x+10} y="216" width="148" height="31" rx="4"/><rect className="instance-allocation-fill" x={server.x+11} y="217" width={146*Math.min(1,server.instances/server.maxInstances)} height="29" rx="3"/><text x={server.x+84} y="229">{server.role}</text><text className="sub" x={server.x+84} y="240">TP {i<2?'8':'16'} · DP {i<2?Math.max(2,Math.round(server.instances/2)):Math.max(2,Math.round(server.instances/4))} · {Math.round(server.util)}% UTIL</text>
+      <g className="npu-row">{Array.from({length:8},(_,n)=><rect key={n} x={server.x+10+n*19} y="258" width="15" height="18" rx="2"/>)}<text x={server.x+84} y="287">NPU × 8 · A5 64GB</text></g>
+      <rect className="hbm-block" x={server.x+10} y="298" width="148" height="31" rx="4"/><rect className="capacity-fill hbm-fill" x={server.x+12} y="325" width={(144*Math.min(1,(3.2+i*.8+progress*.009)/(i<2?10:18)))} height="2"/><text x={server.x+20} y="311">HBM · HOT KV</text><text className="capacity" x={server.x+148} y="321" textAnchor="end">{(3.2+i*.8+progress*.009).toFixed(1)} / {i<2?'10':'18'} TB</text>
+      <path className="hccs-link" d={`M${server.x+20} 340 H${server.x+148}`}/><text className="hccs-text" x={server.x+84} y="350">HCCS · 200 GB/s</text>
+      <path className="resource-link" d={`M${server.x+84} 352 V365 M${server.x+84} 365 H${server.x+50} M${server.x+84} 365 H${server.x+126}`}/>
+      <rect className="ddr-block" x={server.x+10} y="370" width="92" height="38" rx="4"/><rect className="capacity-fill ddr-fill" x={server.x+12} y="404" width={88*Math.min(1,server.ddr/server.ddrCap)} height="2"/><text x={server.x+20} y="384">DDR · WARM KV</text><text className="sub" x={server.x+20} y="398">{server.ddr} / {server.ddrCap} TB</text>
+      <rect className="nic-block" x={server.x+110} y="370" width="48" height="38" rx="4"/><text x={server.x+134} y="384">NIC 0</text><text className="sub" x={server.x+134} y="398">400G</text>
+      <path className="resource-link" d={`M${server.x+50} 408 V419 H${server.x+84} M${server.x+134} 408 V419 H${server.x+84}`}/>
+      <rect className="ssd-block" x={server.x+10} y="423" width="148" height="31" rx="4"/><rect className="capacity-fill ssd-fill" x={server.x+12} y="450" width={144*Math.min(1,server.ssd/server.ssdCap)} height="2"/><text x={server.x+20} y="436">LOCAL SSD · COLD KV</text><text className="capacity" x={server.x+148} y="447" textAnchor="end">{server.ssd} / {server.ssdCap} TB</text>
+    </g>)}</g>
+    <g className="remote-links">{servers.map(server=>{const sourceX=server.x+84;const innerX=410+(sourceX-410)*.18;return <path key={server.x} d={`M${sourceX} 454 C${sourceX} 476 ${innerX} 484 410 506`}/>})}</g><g className="remote-store"><rect x="315" y="506" width="190" height="40" rx="6"/><text x="410" y="522">REMOTE SSD · GLOBAL KV STORE</text><text className="sub" x="410" y="537">{remoteUsed} / {remoteCapacity} TB · NVMe-oF / RDMA</text><rect className="remote-capacity-fill" x="317" y="542" width={186*remoteUsed/remoteCapacity} height="2" rx="1"/><circle className="remote-ingress" cx="410" cy="506" r="3"/></g>
+  </svg><div className="network-legend"><span><i className="qwen"/>Qwen3 实例</span><span><i className="deepseek"/>DeepSeek 实例</span><span><i className="rdma"/>400G RoCE / RDMA · Single Rail</span><span><i className="hccs"/>节点内 HCCS</span></div></div>
+}
+
+function Header({onToggle}:{onToggle:()=>void}){
+  return <header className="header"><button className="brand-switch" onClick={onToggle} title="切换 Demo 方案" aria-label="切换 Demo 方案"><div className="brand-mark"><span/><span/><span/></div><div className="brand"><h1>算存网一体化规划仿真平台</h1><p>INTEGRATED COMPUTING · STORAGE · NETWORK PLANNING SIMULATION PLATFORM</p></div></button><div className="header-context"><button className="ghost-button"><Icon name="download" size={16}/>导出方案</button></div></header>
 }
 
 function WorkflowOverview({onStart}:{onStart:()=>void}){
@@ -234,8 +382,8 @@ function Tunables(){const [cat,setCat]=useState('服务级调度');const cats=['
 
 function TunableContent({cat}:{cat:string}){const rows:Record<string,[string,string,string][]>={'服务级调度':[['实例选择','Load-aware','RR / Affinity / Load-aware'],['P-D Pairing','Topology-aware','Static / Load / Topology-aware'],['Admission Control','Enabled','On / Off'],['请求优先级','SLO-aware','FIFO / SLO-aware']],'推理引擎调度':[['max_num_seqs','128','64 — 512'],['max_num_batched_tokens','16,384','8K — 64K'],['实例内调度','Continuous Batching','Continuous / Priority'],['Chunked Prefill','Enabled · 4K','2K — 16K']],并行策略:[['Tensor Parallel','8','4 — 16'],['Data Parallel','4','2 — 16'],['Pipeline Parallel','1','1 — 4'],['Expert Parallel','8','4 — 16']],'KV 复用与缓存策略':[['Prefix Cache','Enabled','On / Off'],['缓存准入','Reuse-aware','All / Reuse-aware'],['淘汰策略','Cost-aware LRU','LRU / LFU / Cost-aware'],['Prefetch','Adaptive','Off / Static / Adaptive']],'部署拓扑与资源亲和':[['部署模式','P-D 分离','共享池 / P-D 分离'],['Prefill 节点','64','32 — 128'],['Decode 节点','32','16 — 96'],['实例放置','Topology-aware','Local / Topology-aware']],'KV 资源池与分层放置':[['KV 管理组件','LMCache','Native / LMCache / HiCache'],['池化范围','Global','Local / Cluster / Global'],['分布式存储','Mooncake Store','Local / Mooncake / 3FS'],['分层放置迁移','HBM ↔ DDR ↔ SSD','2-tier / 3-tier / Global']],'数据流编排':[['Transfer Backend','RDMA Direct','RDMA / NVMe-oF'],['Slice 粒度','Adaptive','Static / Adaptive'],['节点上联','Single Rail','Fixed by input topology'],['传输优先级','SLO-aware','FIFO / SLO-aware']]};return <div className="tunable-table"><div className="tunable-head"><span>参数</span><span>当前值</span><span>寻优范围</span></div>{rows[cat].map(r=><div key={r[0]}><b>{r[0]}</b><span>{r[1]}</span><small>{r[2]}</small></div>)}</div>}
 
-function Results({stage,progress,scenarioKey}:{stage:Stage;progress:number;scenarioKey:ScenarioKey}){const s=scenarios[scenarioKey];if(stage!=='COMPLETED')return <div className="page result-loading"><PageTitle eyebrow="SIMULATION / PLANNING" title="算存网一体化规划寻优" desc="正在评估服务控制、推理执行、资源布局与数据移动四大类七维决策空间。" badge={stageText[stage]}/><div className="optimizer"><div className="optimizer-orbit"><span>{progress}<small>%</small></span><i/><i/><i/></div><h2>{stage==='IDLE'?'等待启动仿真规划':stageText[stage]}</h2><p>{stage==='IDLE'?'确认输入与可调参数后，点击左侧“开始仿真规划”。':'基于当前 Agent 负载与 SLO 约束评估可行规划方案'}</p><div className="progress"><i style={{width:`${progress}%`}}/></div><div className="search-stats"><MiniMetric label="候选方案" value={Math.round(512*progress/100)} unit="/ 512"/><MiniMetric label="已评估" value={Math.round(286*progress/100)} unit="组"/><MiniMetric label="满足 SLO" value={Math.round(58*progress/100)} unit="组"/><MiniMetric label="当前最优" value={progress<35?'—':`#${Math.max(1,Math.round(183*progress/100))}`} unit="Solution"/></div><div className="stage-flow">{stages.map(x=><div key={x} className={`${stages.indexOf(x)<stages.indexOf(stage)?'done':''} ${x===stage?'active':''}`}><i>{stages.indexOf(x)<stages.indexOf(stage)?<Icon name="check" size={14}/>:stages.indexOf(x)+1}</i><span>{stageText[x]}</span></div>)}</div></div></div>;
-return <div className="page result-page"><div className="result-hero"><div><span className="success-label"><Icon name="check" size={14}/>PLANNING COMPLETED</span><h2>推荐方案 · Solution #183</h2><p>{s.name} · 满足全部 SLO 与资源约束 · 综合评分 92.8</p></div><div className="hero-score"><strong>92.8</strong><span>综合评分</span></div><div className="hero-kpis"><div><small>TTFT P95</small><b>{s.ttftResult} <i>ms</i></b></div><div><small>TPOT P95</small><b>{s.tpotResult} <i>ms</i></b></div><div><small>吞吐</small><b>{formatThroughput(s.throughputResult)} <i>M tok/s</i></b></div><span className="pass-pill">ALL SLO PASS</span></div></div><div className="result-flow"><section className="result-section"><ResultSectionHead index="01" eyebrow="RECOMMENDED PLAN" title="推荐规划方案" desc="明确实例部署、调度路由、KV 资源池和网络数据流配置。"/><Plan s={s}/></section><section className="result-section"><ResultSectionHead index="02" eyebrow="PERFORMANCE VALIDATION" title="方案性能表现" desc="验证服务性能目标，并给出各类资源利用率和运行余量。"/><Performance s={s}/></section><section className="result-section"><ResultSectionHead index="03" eyebrow="NEXT-STEP OPTIMIZATION" title="下一步优化建议" desc="识别追加资源投入的优先方向，并评估可获得的性能收益。"/><Bottleneck s={s}/></section></div></div>}
+function Results({stage,progress,scenarioKey,hideTopology=false,agentPlan=false}:{stage:Stage;progress:number;scenarioKey:ScenarioKey;hideTopology?:boolean;agentPlan?:boolean}){const s=scenarios[scenarioKey];if(stage!=='COMPLETED')return <div className="page result-loading"><PageTitle eyebrow="SIMULATION / PLANNING" title="算存网一体化规划寻优" desc="正在评估服务控制、推理执行、资源布局与数据移动四大类七维决策空间。" badge={stageText[stage]}/><div className="optimizer"><div className="optimizer-orbit"><span>{progress}<small>%</small></span><i/><i/><i/></div><h2>{stage==='IDLE'?'等待启动仿真规划':stageText[stage]}</h2><p>{stage==='IDLE'?'确认输入与可调参数后，点击左侧“开始仿真规划”。':'基于当前 Agent 负载与 SLO 约束评估可行规划方案'}</p><div className="progress"><i style={{width:`${progress}%`}}/></div><div className="search-stats"><MiniMetric label="候选方案" value={Math.round(512*progress/100)} unit="/ 512"/><MiniMetric label="已评估" value={Math.round(286*progress/100)} unit="组"/><MiniMetric label="满足 SLO" value={Math.round(58*progress/100)} unit="组"/><MiniMetric label="当前最优" value={progress<35?'—':`#${Math.max(1,Math.round(183*progress/100))}`} unit="Solution"/></div><div className="stage-flow">{stages.map(x=><div key={x} className={`${stages.indexOf(x)<stages.indexOf(stage)?'done':''} ${x===stage?'active':''}`}><i>{stages.indexOf(x)<stages.indexOf(stage)?<Icon name="check" size={14}/>:stages.indexOf(x)+1}</i><span>{stageText[x]}</span></div>)}</div></div></div>;
+return <div className="page result-page"><div className="result-hero"><div><span className="success-label"><Icon name="check" size={14}/>PLANNING COMPLETED</span><h2>推荐方案 · Solution #183</h2><p>{agentPlan?'3 Agent 联合规划':s.name} · 满足全部 SLO 与资源约束 · 综合评分 92.8</p></div><div className="hero-score"><strong>92.8</strong><span>综合评分</span></div><div className="hero-kpis"><div><small>TTFT P95</small><b>{s.ttftResult} <i>ms</i></b></div><div><small>TPOT P95</small><b>{s.tpotResult} <i>ms</i></b></div><div><small>吞吐</small><b>{formatThroughput(s.throughputResult)} <i>M tok/s</i></b></div><span className="pass-pill">ALL SLO PASS</span></div></div><div className="result-flow"><section className="result-section"><ResultSectionHead index="01" eyebrow="RECOMMENDED PLAN" title="推荐规划方案" desc="明确实例部署、调度路由、KV 资源池和网络数据流配置。"/><Plan s={s} hideTopology={hideTopology} agentPlan={agentPlan}/></section><section className="result-section"><ResultSectionHead index="02" eyebrow="PERFORMANCE VALIDATION" title="方案性能表现" desc="验证服务性能目标，并给出各类资源利用率和运行余量。"/><Performance s={s}/></section><section className="result-section"><ResultSectionHead index="03" eyebrow="NEXT-STEP OPTIMIZATION" title="下一步优化建议" desc="识别追加资源投入的优先方向，并评估可获得的性能收益。"/><Bottleneck s={s}/></section></div></div>}
 
 function ResultSectionHead({index,eyebrow,title,desc}:{index:string;eyebrow:string;title:string;desc:string}){return <div className="result-section-head"><span>{index}</span><div><small>{eyebrow}</small><h2>{title}</h2><p>{desc}</p></div></div>}
 
@@ -266,18 +414,18 @@ const getModelDeploymentSummary=(s:Scenario)=>s.key==='coding'
   ? [{label:'模型 A · Cluster A',model:'Qwen3-32B',prefillNodes:16,decodeNodes:8,prefillInstances:8,decodeInstances:4,nodes:24,affinity:'普通节点域独立 P/D 单元'},{label:'模型 B · Cross-Cluster',model:'DeepSeek-Coder-V2',prefillNodes:48,decodeNodes:40,prefillInstances:24,decodeInstances:20,nodes:88,affinity:'Cluster A 溢出 16 + Cluster B 主池 72'}]
   : [{label:'模型',model:getModelInputs(s)[0].model,prefillNodes:s.prefillNodes,decodeNodes:s.decodeNodes,prefillInstances:s.prefillInstances,decodeInstances:s.decodeInstances,nodes:s.prefillNodes+s.decodeNodes,affinity:'每个集群内 P/D 就近配对'}]
 
-function Plan({s}:{s:(typeof scenarios)[ScenarioKey]}){
+function Plan({s,hideTopology=false,agentPlan=false}:{s:(typeof scenarios)[ScenarioKey];hideTopology?:boolean;agentPlan?:boolean}){
   const hbmTotal=s.gpuCount*64/1024
   const prefillCards=s.prefillNodes*8
   const decodeCards=s.decodeNodes*8
   const prefillPct=Math.round(s.prefillNodes/(s.prefillNodes+s.decodeNodes)*100)
   const kvStack=getKvResourceStack(s)
-  const modelDeployments=getModelDeploymentSummary(s)
+  const modelDeployments=agentPlan?[{label:'共享模型 · Agent 01 + Agent 03',model:'Qwen3-32B',prefillNodes:24,decodeNodes:16,prefillInstances:12,decodeInstances:8,nodes:40,affinity:'双 Agent 共享模型服务与 Prefix Cache'},{label:'独立模型 · Agent 02',model:'DeepSeek-V3',prefillNodes:40,decodeNodes:32,prefillInstances:20,decodeInstances:16,nodes:72,affinity:'长上下文实例池 · 集群内 P/D 配对'}]:getModelDeploymentSummary(s)
   return <div className="results-grid">
     <Card title="计算资源与 P/D 部署" subtitle="MODEL · NODE · INSTANCE PLANNING" icon="chip"><div className="plan-primary"><span><small>Prefill 节点</small><b>{s.prefillNodes}</b><i>{s.prefillInstances} 实例组 · {prefillCards} 卡</i></span><span><small>Decode 节点</small><b>{s.decodeNodes}</b><i>{s.decodeInstances} 实例组 · {decodeCards} 卡</i></span><span><small>单实例组</small><b>{s.nodesPerInstance}</b><i>节点/组 · 每节点 8 卡</i></span></div><div className="model-deployment-summary">{modelDeployments.map(x=><div key={x.model}><span><small>{x.label}</small><b>{x.model}</b></span><div className="model-pd-count"><i className="prefill"><small>P 实例</small><b>{x.prefillInstances}</b><em>{x.prefillNodes} 节点</em></i><i className="decode"><small>D 实例</small><b>{x.decodeInstances}</b><em>{x.decodeNodes} 节点</em></i></div><strong>{x.nodes}<small>部署节点</small></strong><em>{x.affinity}</em></div>)}</div><div className="pd-allocation"><div><span>Prefill <b>{prefillPct}%</b></span><span>Decode <b>{100-prefillPct}%</b></span></div><i><b style={{width:`${prefillPct}%`}}/><b style={{width:`${100-prefillPct}%`}}/></i></div><div className="instance-note">共 {s.nodes} 节点 / {s.gpuCount} 卡{s.reservedNodes>0?` · ${s.prefillNodes+s.decodeNodes} 节点部署 + ${s.reservedNodes} 节点余量（每集群 1 节点）`:''}；所有实例组均按 {s.nodesPerInstance} 节点/组折算。</div></Card>
     <Card title="服务调度与引擎执行" subtitle="SERVICE CONTROL / INFERENCE EXECUTION" icon="sliders"><div className="key-value"><p><span>引擎调度</span><b>Continuous Batching</b></p><p><span>Chunked Prefill</span><b>Enabled / 4K</b></p><p><span>服务级路由</span><b>Load-aware · Cache-aware</b></p><p><span>准入控制</span><b className="green">Enabled</b></p></div></Card>
     <div className="plan-wide"><Card title="KV 资源池与分层放置规划" subtitle="POOL STRATEGY / ESTIMATED DEMAND / PLANNED CAPACITY" icon="database"><div className="kv-pool-strategy"><span><small>KV 管理层</small><b>{kvStack.split(' + ')[0]}</b></span><span><small>池化范围</small><b>Cluster + Global</b></span><span><small>分布式存储</small><b>Mooncake Store</b></span><span><small>放置与迁移</small><b>HBM ↔ DDR ↔ SSD</b></span></div><div className="capacity-plan-grid"><CapacityPlan label="HBM Pool" demand={s.hbmDemandTB} total={hbmTotal} scope="模型常驻、运行时与热 KV"/><CapacityPlan label="DDR Pool" demand={s.ddrDemandTB} total={s.ddrTB} scope="Warm KV · 跨节点共享"/><CapacityPlan label="Local SSD Pool" demand={s.localSsdDemandTB} total={s.localSsdTB} scope="集群内冷 KV 与回源"/><CapacityPlan label="Remote SSD Pool" demand={s.remoteSsdDemandTB} total={s.remoteSsdTB} scope="跨集群长尾 KV"/></div><div className="sizing-note"><Icon name="activity" size={14}/><span>需求估算：模型常驻与运行时占用 + 峰值并发 KV + 分层承接量；规划总量按节点/盘组规格向上取整并保留运行余量。</span></div></Card></div>
-    <div className="plan-wide"><Card title="模型与资源部署拓扑" subtitle="MODEL / P-D PLACEMENT · HBM / DDR / SSD · DATA FLOW" icon="network"><PlanningNetworkTopology scenario={s}/></Card></div>
+    {!hideTopology&&<div className="plan-wide"><Card title="模型与资源部署拓扑" subtitle="MODEL / P-D PLACEMENT · HBM / DDR / SSD · DATA FLOW" icon="network"><PlanningNetworkTopology scenario={s}/></Card></div>}
   </div>
 }
 
