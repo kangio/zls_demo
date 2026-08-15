@@ -369,6 +369,33 @@
 .ddr-fill { fill: #8d99ef; color: #8d99ef; }
 .ssd-fill { fill: #55c9a2; color: #55c9a2; }
 
+.sim-cluster-shells .planned-node-count {
+  fill: #70d7eb;
+  font-size: 6px;
+  font-weight: 700;
+  letter-spacing: .35px;
+  filter: drop-shadow(0 0 3px rgba(56, 189, 248, .45));
+}
+
+.progressive-links path {
+  transition: stroke-dashoffset .14s linear, opacity .2s ease;
+}
+
+.progressive-leaf {
+  transition: opacity .2s ease;
+}
+
+.server-planned-content {
+  transition: opacity .22s ease;
+}
+
+.sim-server-cards .server-pending {
+  fill: #3f596b;
+  font-size: 5.7px;
+  font-weight: 600;
+  letter-spacing: .45px;
+}
+
 @media (max-width: 1350px) {
   .planning-live-grid {
     grid-template-columns: 180px minmax(0, 1fr);
@@ -383,4 +410,259 @@
   .dimension-item .dimension-scope { font-size: 6px; }
   .dimension-item small { font-size: 6.5px; }
   .sim-network.detailed > svg { max-height: 505px; }
+}
+
+/* Compact full-view simulation layout */
+.agent-simulation .simulation-head {
+  padding-bottom: 8px;
+}
+
+.agent-simulation .simulation-head h1 {
+  margin: 3px 0 2px;
+}
+
+.agent-simulation .simulation-canvas {
+  min-height: 640px;
+  padding: 9px;
+}
+
+.agent-simulation .dimension-map {
+  min-height: 610px;
+  grid-template-rows: 38px repeat(7, 1fr);
+  gap: 4px;
+  padding: 7px;
+}
+
+.agent-simulation .dimension-item {
+  padding: 6px 7px;
+}
+
+.agent-simulation .dimension-item > i {
+  width: 21px;
+  height: 21px;
+}
+
+.agent-simulation .agent-layer .sim-agent {
+  min-height: 52px;
+  padding: 5px 8px;
+}
+
+.agent-simulation .agent-model-routes {
+  height: 34px;
+}
+
+.agent-simulation .sim-layer > label,
+.agent-simulation .sim-network > label {
+  margin-bottom: 5px;
+}
+
+.agent-simulation .sim-model {
+  min-height: 110px;
+  padding: 6px 8px;
+}
+
+.agent-simulation .model-live-kpis {
+  gap: 4px !important;
+  margin-top: 4px;
+}
+
+.agent-simulation .model-live-kpis > i {
+  padding: 3px 5px 4px;
+}
+
+.model-engine-tunables {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.model-engine-tunables span {
+  min-width: 0;
+  padding: 3px 4px;
+  border: 1px solid #25465a;
+  border-radius: 3px;
+  color: #587a8f;
+  font: 500 5.2px JetBrains Mono;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.model-engine-tunables b {
+  margin-left: 2px;
+  color: #8cdcef;
+  font-size: 5.8px;
+}
+
+.model-1 .model-engine-tunables span {
+  border-color: #454a7b;
+  color: #737ba8;
+}
+
+.model-1 .model-engine-tunables b {
+  color: #b0b4ff;
+}
+
+.agent-simulation .model-fabric-links {
+  height: 15px;
+}
+
+.agent-simulation .sim-network.detailed {
+  padding: 5px 8px 4px;
+}
+
+.agent-simulation .sim-network.detailed > svg {
+  max-height: 440px;
+}
+
+.agent-simulation .network-legend {
+  margin-top: 3px;
+}
+
+.agent-simulation .simulation-footer {
+  padding-top: 6px;
+}
+
+@media (max-width: 1350px) {
+  .agent-simulation .simulation-canvas { min-height: 610px; }
+  .agent-simulation .dimension-map { min-height: 580px; }
+  .agent-simulation .sim-network.detailed > svg { max-height: 410px; }
+}
+
+@media (max-height: 800px) {
+  .agent-stage:has(.agent-simulation) {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .agent-simulation .simulation-head {
+    height: 36px;
+    padding: 0;
+  }
+
+  .agent-simulation .simulation-head h1 {
+    margin: 1px 0 0;
+    font-size: 15px;
+  }
+
+  .agent-simulation .simulation-head-numbers > span b {
+    margin-top: 1px;
+    font-size: 13px;
+  }
+
+  .agent-simulation .simulation-head-numbers > strong {
+    font-size: 20px;
+  }
+
+  .agent-simulation .simulation-canvas {
+    min-height: 0;
+    padding: 6px;
+  }
+
+  .agent-simulation .planning-live-grid {
+    gap: 8px;
+  }
+
+  .agent-simulation .dimension-map {
+    min-height: 520px;
+    grid-template-rows: 32px repeat(7, 1fr);
+    gap: 3px;
+    padding: 5px;
+  }
+
+  .agent-simulation .dimension-item {
+    gap: 5px;
+    padding: 4px 5px;
+  }
+
+  .agent-simulation .dimension-item > i {
+    width: 18px;
+    height: 18px;
+    font-size: 7px;
+  }
+
+  .agent-simulation .dimension-item .dimension-scope {
+    margin-top: 2px;
+  }
+
+  .agent-simulation .dimension-item small {
+    margin-top: 2px;
+    font-size: 6.2px;
+  }
+
+  .agent-simulation .sim-layer > label,
+  .agent-simulation .sim-network > label {
+    margin-bottom: 3px;
+  }
+
+  .agent-simulation .agent-layer .sim-agent {
+    min-height: 42px;
+    padding: 3px 6px;
+  }
+
+  .agent-simulation .agent-layer .sim-agent u {
+    margin-top: 1px;
+  }
+
+  .agent-simulation .agent-model-routes {
+    height: 20px;
+  }
+
+  .agent-simulation .model-layer > div {
+    gap: 10px;
+  }
+
+  .agent-simulation .sim-model {
+    min-height: 88px;
+    padding: 4px 6px;
+  }
+
+  .agent-simulation .model-live-kpis {
+    gap: 3px !important;
+    margin-top: 2px;
+  }
+
+  .agent-simulation .model-live-kpis > i {
+    padding: 2px 4px 3px;
+  }
+
+  .agent-simulation .model-live-kpis > i > b {
+    margin: 1px 0 2px;
+    font-size: 7px;
+  }
+
+  .agent-simulation .model-live-kpis > i > em {
+    height: 3px;
+  }
+
+  .agent-simulation .model-engine-tunables {
+    gap: 3px;
+    margin-top: 3px;
+  }
+
+  .agent-simulation .model-engine-tunables span {
+    padding: 2px 3px;
+  }
+
+  .agent-simulation .model-fabric-links {
+    height: 8px;
+  }
+
+  .agent-simulation .sim-network.detailed {
+    padding: 3px 6px 2px;
+  }
+
+  .agent-simulation .sim-network.detailed > svg {
+    max-height: 320px;
+  }
+
+  .agent-simulation .network-legend {
+    margin-top: 1px;
+  }
+
+  .agent-simulation .simulation-footer {
+    min-height: 18px;
+    padding-top: 3px;
+  }
 }
