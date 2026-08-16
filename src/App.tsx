@@ -174,6 +174,11 @@ function AgentFlowSteps(){const steps=[
   {n:'03',icon:'network',title:'生成资源规划',desc:'将模型实例直接映射到同构集群节点，输出算存网部署方案。',tags:['节点放置','同构网络','容量规划']},
 ];return <div className="agent-flow-intro"><div className="agent-stage-heading"><span>SINGLE PAGE WORKFLOW</span><h1>多 Agent 联合规划</h1><p>从业务配置到资源落位，在同一视图完成仿真规划闭环。</p><b>点击左侧 Agent 卡片开始配置</b></div><div className="agent-flow-steps">{steps.map((step,i)=><section key={step.n}><span className="flow-step-number">{step.n}</span><div className="flow-step-icon"><Icon name={step.icon} size={24}/></div><small>STEP {step.n}</small><h2>{step.title}</h2><p>{step.desc}</p><div>{step.tags.map(tag=><b key={tag}><Icon name="check" size={12}/>{tag}</b>)}</div>{i<2&&<em><Icon name="arrow" size={18}/></em>}</section>)}</div><div className="agent-flow-note"><Icon name="activity"/><span><b>联动逻辑</b>Agent 负载与 SLO 驱动模型实例规模，七维寻优决定实例参数、缓存层级、节点放置和网络数据路径。</span></div></div>}
 
+function DimensionProgressBorder({progress}:{progress:number}){
+  const edge=(start:number)=>Math.max(0,Math.min(1,(progress-start)/25))
+  return <span className="dimension-progress-border" aria-hidden="true"><i className="edge edge-top" style={{transform:`scaleX(${edge(0)})`}}/><i className="edge edge-right" style={{transform:`scaleY(${edge(25)})`}}/><i className="edge edge-bottom" style={{transform:`scaleX(${edge(50)})`}}/><i className="edge edge-left" style={{transform:`scaleY(${edge(75)})`}}/></span>
+}
+
 function AgentSimulation({agents,progress,done,onResults}:{agents:AgentConfig[];progress:number;done:boolean;onResults:()=>void}){
   const wave=Math.sin(progress*.18)
   const kvHit=Math.min(79,Math.round(51+progress*.28+wave*2))
@@ -184,11 +189,11 @@ function AgentSimulation({agents,progress,done,onResults}:{agents:AgentConfig[];
   const dimensionValues=[
     `路由 ${progress<38?'Load-aware':'Cache-aware'} · 准入 ${Math.round(820+progress*3.1)} req/s`,
     `Batch ${96+Math.round(progress*.32)} · Chunk ${progress<52?'8K':'4K'} · Queue ${Math.max(6,18-Math.round(progress*.11))}ms`,
-    `Qwen TP8/DP${Math.max(2,Math.round(qwenInstances/8))} · DS TP16/EP8`,
-    `RDMA P${progress<46?'1':'0'} · Slice ${progress<60?'4':'2'}MB · Rail 1`,
-    `Qwen N001–N040 · DS N041–N${96+Math.round(progress*.16)}`,
-    `Prefix ${kvHit}% · Cost-LRU · Block ${progress<55?'32':'16'}K`,
-    `HBM ${(13.4+progress*.041).toFixed(1)}T · DDR ${Math.round(132+progress*.44)}T · SSD ${Math.round(248+progress*1.36)}T`,
+    `Qwen TP${4+Math.round(progress*.04)}/DP${2+Math.round(progress*.06)} · DS TP${8+Math.round(progress*.08)}/EP${4+Math.round(progress*.04)}`,
+    `RDMA QP ${16+progress} · Slice ${progress<60?'4':'2'}MB · Rail ${1+Math.floor(progress/34)}`,
+    `Qwen ${Math.max(1,Math.round(progress*.4))}/40 Nodes · DS ${Math.max(1,Math.round(progress*.72))}/72 Nodes`,
+    `Prefix ${kvHit}% · LRU ${Math.round(48+progress*.44)}K · Block ${progress<55?'32':'16'}K`,
+    `HBM ${(13.4+progress*.041).toFixed(2)}T · DDR ${(132+progress*.44).toFixed(1)}T · SSD ${(248+progress*1.36).toFixed(1)}T`,
   ]
   const dimensionRates=[.72,1.28,.88,1.46,.78,1.12,.96]
   const dimensionProgress=dimensionRates.map(rate=>Math.min(100,Math.round(100*Math.pow(progress/100,rate))))
@@ -196,7 +201,7 @@ function AgentSimulation({agents,progress,done,onResults}:{agents:AgentConfig[];
   return <div className={`agent-simulation ${done?'done':''}`}>
     <div className="simulation-head"><div><span>JOINT PLANNING SIMULATION</span><h1>{phase}</h1></div><div className="simulation-head-numbers"><span><small>当前候选</small><b>#{String(Math.max(1,Math.round(progress*1.83))).padStart(3,'0')}</b></span><strong>{progress}<small>%</small></strong></div></div>
     <div className="simulation-canvas">
-      <div className="planning-live-grid"><aside className="dimension-map"><div className="dimension-map-head"><span>7D PARAMETERS</span><b>动态规划参数</b></div>{optimizationDimensions.map((dimension,i)=><div key={dimension[0]} className={`dimension-item dimension-${i+1} ${dimensionProgress[i]===100?'dimension-complete':''}`}><svg className="dimension-progress-border" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><rect x="1" y="1" width="98" height="98" rx="6" pathLength="100" style={{strokeDashoffset:100-dimensionProgress[i]}}/></svg><i>{i+1}</i><span><b>{dimension[0]}</b><em className="dimension-scope">{dimension[1]}</em><small className="dimension-live-value"><strong>{dimensionProgress[i]}%</strong><span>{dimensionValues[i]}</span></small></span></div>)}</aside><div className="live-topology">
+      <div className="planning-live-grid"><aside className="dimension-map"><div className="dimension-map-head"><span>7D PARAMETERS</span><b>动态规划参数</b></div>{optimizationDimensions.map((dimension,i)=><div key={dimension[0]} className={`dimension-item dimension-${i+1} ${dimensionProgress[i]===100?'dimension-complete':''}`}><DimensionProgressBorder progress={dimensionProgress[i]}/><i>{i+1}</i><span><b>{dimension[0]}</b><em className="dimension-scope">{dimension[1]}</em><small className="dimension-live-value"><strong>{dimensionProgress[i]}%</strong><span>{dimensionValues[i]}</span></small></span></div>)}</aside><div className="live-topology">
         <div className="sim-layer agent-layer"><label>01 · BUSINESS DEMAND & SLO</label><div>{agents.map(agent=>{const actualTtft=agent.model==='DeepSeek-V3'?dsTtft:qwenTtft;const actualTpot=agent.model==='DeepSeek-V3'?dsTpot:qwenTpot;const passed=progress>=12&&actualTtft<=agent.ttft&&actualTpot<=agent.tpot;return <span key={agent.id} className={`sim-agent ${agent.color} ${passed?'slo-pass':'slo-fail'}`}><Icon name={agent.icon} size={15}/><b>{agent.name.replace(' Agent','')}</b><small>{agent.peak} req/s · {agent.throughput} tps</small><u>TTFT &lt; {agent.ttft} ms · TPOT &lt; {agent.tpot} ms</u></span>})}</div></div>
         <svg className="agent-model-routes" viewBox="0 0 700 58" preserveAspectRatio="none" aria-label="Agent 到模型服务的请求路由"><path className="qwen-route" d="M115 0 C115 28 225 22 225 58M585 0 C585 28 225 22 225 58"/><path className="deepseek-route" d="M350 0 C350 28 480 22 480 58"/><circle className="packet" r="3"><animateMotion dur="1.5s" repeatCount="indefinite" path="M115 0 C115 28 225 22 225 58"/></circle><circle className="packet" r="3"><animateMotion begin="-.7s" dur="1.7s" repeatCount="indefinite" path="M585 0 C585 28 225 22 225 58"/></circle><circle className="packet deepseek-packet" r="3"><animateMotion begin="-.3s" dur="1.6s" repeatCount="indefinite" path="M350 0 C350 28 480 22 480 58"/></circle></svg>
         <div className="sim-layer model-layer"><label>02 · MODEL PERFORMANCE & ENGINE TUNING</label><div>

@@ -67,31 +67,43 @@
   position: absolute;
   z-index: 2;
   inset: -1px;
-  width: calc(100% + 2px);
-  height: calc(100% + 2px);
-  overflow: visible;
+  overflow: hidden;
+  border-radius: 5px;
+  color: #52d5ed;
   pointer-events: none;
 }
 
-.dimension-progress-border rect {
-  fill: none;
-  stroke: #52d5ed;
-  stroke-width: 1.4;
-  stroke-linecap: round;
-  vector-effect: non-scaling-stroke;
-  stroke-dasharray: 100;
-  filter: drop-shadow(0 0 1.5px rgba(56, 189, 248, .5));
-  transition: stroke-dashoffset .24s linear, stroke .3s ease, filter .3s ease;
+.dimension-progress-border .edge {
+  position: absolute;
+  display: block;
+  background: currentColor;
+  box-shadow: 0 0 2px currentColor;
+  transition: transform .12s linear;
 }
 
-.dimension-item:nth-child(2n) .dimension-progress-border rect {
-  stroke: #8c96f4;
-  filter: drop-shadow(0 0 1.5px rgba(129, 140, 248, .48));
+.dimension-progress-border .edge-top,
+.dimension-progress-border .edge-bottom {
+  left: 0;
+  width: 100%;
+  height: 1px;
 }
 
-.dimension-item.dimension-complete .dimension-progress-border rect {
-  stroke: #52d9ad;
-  filter: drop-shadow(0 0 2px rgba(52, 211, 153, .58));
+.dimension-progress-border .edge-right,
+.dimension-progress-border .edge-left {
+  top: 0;
+  width: 1px;
+  height: 100%;
+}
+
+.dimension-progress-border .edge-top { top: 0; transform-origin: left center; }
+.dimension-progress-border .edge-right { right: 0; transform-origin: center top; }
+.dimension-progress-border .edge-bottom { bottom: 0; transform-origin: right center; }
+.dimension-progress-border .edge-left { left: 0; transform-origin: center bottom; }
+
+.dimension-item:nth-child(2n) .dimension-progress-border { color: #8c96f4; }
+
+.dimension-item.dimension-complete .dimension-progress-border {
+  color: #52d9ad;
 }
 
 .cost-optimal-hero {
@@ -1491,6 +1503,7 @@
 
 .agent-simulation .dimension-item {
   padding: 6px 7px;
+  border-color: #183445;
 }
 
 .agent-simulation .dimension-item > i {
