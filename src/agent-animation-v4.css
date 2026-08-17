@@ -1638,7 +1638,7 @@
   .agent-simulation .sim-network.detailed > svg { max-height: 410px; }
 }
 
-@media (max-height: 800px) {
+@media (max-height: 560px) {
   .agent-stage:has(.agent-simulation) {
     padding-top: 0;
     padding-bottom: 0;
@@ -1773,4 +1773,100 @@
     min-height: 18px;
     padding-top: 3px;
   }
+}
+
+/* Unified design-size layout: complete at 100%, browser zoom scales it uniformly. */
+.agent-simulation {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.agent-simulation .simulation-head {
+  height: 44px;
+  flex: none;
+  padding: 0 0 6px;
+}
+
+.agent-simulation .simulation-canvas {
+  min-height: 0;
+  flex: none;
+  padding: 6px;
+}
+
+.agent-simulation .planning-live-grid {
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.agent-simulation .dimension-map {
+  height: 491px;
+  min-height: 0;
+  grid-template-rows: 34px repeat(7, 1fr);
+  gap: 3px;
+  padding: 5px;
+}
+
+.agent-simulation .dimension-item {
+  gap: 5px;
+  padding: 4px 5px;
+}
+
+.agent-simulation .dimension-item > i {
+  width: 18px;
+  height: 18px;
+  font-size: 7px;
+}
+
+.agent-simulation .agent-layer .sim-agent {
+  min-height: 44px;
+  padding: 3px 6px;
+}
+
+.agent-simulation .agent-model-routes {
+  height: 22px;
+}
+
+.agent-simulation .sim-model {
+  min-height: 90px;
+  padding: 4px 6px;
+}
+
+.agent-simulation .model-live-kpis {
+  gap: 3px !important;
+  margin-top: 2px;
+}
+
+.agent-simulation .model-live-kpis > i {
+  padding: 2px 4px 3px;
+}
+
+.agent-simulation .model-engine-tunables {
+  gap: 3px;
+  margin-top: 3px;
+}
+
+.agent-simulation .model-fabric-links {
+  height: 8px;
+}
+
+.agent-simulation .sim-network.detailed {
+  padding: 3px 6px 2px;
+}
+
+.agent-simulation .sim-network.detailed > svg {
+  width: 100%;
+  height: 280px;
+  max-height: none;
+}
+
+.agent-simulation .network-legend {
+  margin-top: 1px;
+}
+
+.agent-simulation .simulation-footer {
+  min-height: 22px;
+  flex: none;
+  padding-top: 3px;
 }
