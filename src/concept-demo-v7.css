@@ -1,0 +1,6 @@
+/* Frameless circular animation and larger completed-state orbit. */
+.joint-model{border:0;background:transparent;box-shadow:none}.joint-model>span{padding-bottom:4px;border-bottom:1px solid #286278}.joint-kv{border:0;background:transparent;box-shadow:none;padding-left:0;padding-right:0}.joint-topology{border:0!important;background:transparent!important;box-shadow:none!important;padding-left:0;padding-right:0}.concept-topology-caption{border-bottom:0}.concept-topology-svg{left:2%;right:2%;width:96%}.joint-stack{background:transparent}
+.concept-shell.is-done .orbit-status{left:20%;right:20%;justify-content:center}.concept-shell.is-done .orbit-status>span{font-size:7px;letter-spacing:2px;text-align:center}.concept-shell.is-done .concept-progress-ring{width:min(440px,34vw)}
+@media(max-width:1350px){.concept-shell.is-done .concept-progress-ring{width:min(410px,33vw)}}
+@media(max-height:820px){.concept-shell.is-done .concept-progress-ring{width:min(390px,33vw)}}
+@media(max-height:680px){.concept-shell.is-done .concept-progress-ring{width:min(325px,31vw)}}
