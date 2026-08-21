@@ -316,22 +316,24 @@ function ConceptPlanningDemo({onToggle}:{onToggle:()=>void}){
     {label:'可用性',unit:'%',value:(key:ConceptPriority)=>Number(plans[key].availability.replace('%','')),max:100,min:99.9},
   ]
   const showingPlanDetail=Boolean(activeResult)||(done&&priorities.length===1)
+  const currentResultKey=activeResult??(priorities.length===1?priorities[0]:null)
 
   return <div className={`concept-shell concept-v8 ${done?'is-done':hasStarted?'is-running':'is-idle'} ${showingPlanDetail?'showing-detail':''}`}>
     <Header onToggle={onToggle}/>
     <main className="concept-main">
       <section className="concept-workspace">
         <aside className="concept-decisions">
-          <div className="concept-section-label"><span>01 / MODEL REQUIREMENT</span><h2>模型需求</h2><p>定义服务目标与方案偏好，驱动联合寻优</p></div>
+          <div className="concept-section-label strategy-title"><span>01 / PLANNING STRATEGY</span><h2>规划策略</h2><p>选择需要参与仿真与对比的候选方案</p></div>
+          <div className="decision-heading"><span>PLAN OPTIONS</span><b>候选方案（可多选）</b><em>已选 {priorities.length}</em></div>
+          <div className="decision-list">
+            {(Object.keys(optionMeta) as ConceptPriority[]).map(key=>{const meta=optionMeta[key],selected=priorities.includes(key);return <button key={key} className={selected?'active':''} onClick={()=>togglePriority(key)} aria-pressed={selected}><i>{selected?<Icon name="check" size={12}/>:meta.index}</i><span><b>{plans[key].label}</b><small>{meta.description}</small><u>{meta.tags.map(tag=><em key={tag}>{tag}</em>)}</u></span></button>})}
+          </div>
+          <div className="planning-requirements-title"><span>02 / PLANNING REQUIREMENT</span><h2>规划需求</h2><p>模型、SLO、成本与可靠性约束</p></div>
           <div className="concept-model-summary"><div className="model-layer-stack"><i/><i/><i/><b><span>1.6T</span><em>TOTAL</em></b></div><div><small>MODEL PROFILE</small><strong>DeepSeek-V4-Pro</strong><p>49B Active · MoE Sparse · 1M Context</p><em>峰值请求 3,200 req/s</em></div></div>
           <div className="requirement-sliders">
             <div className="slider-group"><header><b>SLO</b><span>SERVICE LEVEL OBJECTIVE</span></header><RequirementSlider label="TTFT P95" value={requirements.ttft} min={900} max={2200} step={50} unit="ms" onChange={value=>updateRequirement('ttft',value)}/><RequirementSlider label="TPOT P95" value={requirements.tpot} min={24} max={64} step={2} unit="ms" onChange={value=>updateRequirement('tpot',value)}/></div>
             <div className="slider-group compact"><header><b>成本</b><span>COST LIMIT</span></header><RequirementSlider label="成本指数上限" value={requirements.cost} min={70} max={120} step={1} unit="" onChange={value=>updateRequirement('cost',value)}/></div>
             <div className="slider-group compact"><header><b>可靠性</b><span>RELIABILITY</span></header><RequirementSlider label="可用性目标" value={requirements.availability} min={99.9} max={99.99} step={.01} unit="%" digits={2} onChange={value=>updateRequirement('availability',value)}/><RequirementSlider label="冗余等级" value={requirements.redundancy} min={1} max={3} step={1} unit={` · ${['基础','N+1','双活'][requirements.redundancy-1]}`} onChange={value=>updateRequirement('redundancy',value)}/></div>
-          </div>
-          <div className="decision-heading"><span>02 / PLAN OPTIONS</span><b>候选方案（可多选）</b><em>已选 {priorities.length}</em></div>
-          <div className="decision-list">
-            {(Object.keys(optionMeta) as ConceptPriority[]).map(key=>{const meta=optionMeta[key],selected=priorities.includes(key);return <button key={key} className={selected?'active':''} onClick={()=>togglePriority(key)} aria-pressed={selected}><i>{selected?<Icon name="check" size={12}/>:meta.index}</i><span><b>{plans[key].label}</b><small>{meta.description}</small><u>{meta.tags.map(tag=><em key={tag}>{tag}</em>)}</u></span></button>})}
           </div>
           <button className="start-concept-simulation" onClick={start}><span><Icon name="play" size={14}/>开始仿真规划</span><small>{priorities.length} 组方案 · 联合寻优</small></button>
         </aside>
@@ -361,13 +363,12 @@ function ConceptPlanningDemo({onToggle}:{onToggle:()=>void}){
 
         {done&&<aside className={`concept-result ${activeResult?'detail-mode':'compare-mode'}`} aria-live="polite">
           <div className="result-success"><i><Icon name="check" size={17}/></i><span><small>OPTIMIZATION COMPLETE</small><h2>{priorities.length>1&&!activeResult?'多方案量化对比':'方案详情'}</h2></span>{activeResult&&priorities.length>1&&<button className="back-to-compare" onClick={()=>setActiveResult(null)}>返回对比</button>}</div>
-          <div className="result-plan-tabs">{selectedPlans.map(({key,plan:item})=><button key={key} className={`${planColorClass[key]} ${activeResult===key?'active':''}`} onClick={()=>setActiveResult(key)}><i/><span>{item.label}</span></button>)}</div>
+          <div className={`result-plan-tabs ${currentResultKey?'has-current':''}`}>{selectedPlans.map(({key,plan:item})=>{const isCurrent=currentResultKey===key;return <button key={key} className={`${planColorClass[key]} ${isCurrent?'active':currentResultKey?'inactive':''}`} onClick={()=>setActiveResult(key)} aria-pressed={isCurrent}><i/><span>{item.label}</span></button>})}</div>
           {!activeResult&&priorities.length>1?<div className="multi-plan-comparison">
             <header><span>QUANTITATIVE COMPARISON</span><b>{selectedPlans.length} 组结果量化对比</b><p>点击顶部方案按钮查看完整配置与图例</p></header>
             <div className="column-chart">{comparisonMetrics.map(metric=><section key={metric.label}><div className="chart-label"><b>{metric.label}</b><small>{metric.unit}</small></div><div className="chart-columns">{selectedPlans.map(({key,plan:item})=>{const raw=metric.value(key),min=metric.min??0,span=metric.max-min;const height=Math.max(18,((raw-min)/span)*100);return <button key={key} className={planColorClass[key]} onClick={()=>setActiveResult(key)} title={`查看${item.label}`}><em>{raw}</em><i style={{height:`${height}%`}}/><span>{item.label.replace('优先','')}</span></button>})}</div></section>)}</div>
             <div className="comparison-note"><Icon name="activity" size={14}/><span>柱高按各指标实际量纲归一化展示；TTFT 与成本数值越低越优。</span></div>
           </div>:<ConceptPlanDetail plan={shownPlan} priority={activeResult??simulationPriority} topology={shownPlan.topology}/>}
-          <button className="restart-search" onClick={()=>{setActiveResult(null);start()}}>重新寻优 <Icon name="activity" size={14}/></button>
         </aside>}
       </section>
     </main>
