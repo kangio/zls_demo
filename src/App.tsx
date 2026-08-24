@@ -208,11 +208,13 @@ const topologyDefinitions:Record<TopologyKind,{label:string;points:TopologyPoint
   dragonfly:{label:'Dragonfly+',points:[{x:12,y:22,tone:'a'},{x:24,y:12,tone:'a'},{x:28,y:30,tone:'a'},{x:72,y:18,tone:'b'},{x:86,y:12,tone:'b'},{x:88,y:31,tone:'b'},{x:12,y:72,tone:'b'},{x:26,y:64,tone:'b'},{x:28,y:84,tone:'b'},{x:70,y:70,tone:'a'},{x:84,y:62,tone:'a'},{x:88,y:82,tone:'a'}],edges:[[0,1,'a'],[1,2,'a'],[2,0,'a'],[3,4,'b'],[4,5,'b'],[5,3,'b'],[6,7,'b'],[7,8,'b'],[8,6,'b'],[9,10,'a'],[10,11,'a'],[11,9,'a'],[2,3],[1,10],[5,11],[4,7],[8,9],[6,0]]},
 }
 
-function ConceptTopology({kind,scale,compact=false}:{kind:TopologyKind;scale:number;compact?:boolean}){
+function ConceptTopology({kind,scale,compact=false,language='zh'}:{kind:TopologyKind;scale:number;compact?:boolean;language?:'zh'|'en'}){
   const topology=topologyDefinitions[kind]
+  const topologyLabel=language==='en'&&kind==='dualClos'?'Dual-Plane Rail Fat-Tree':topology.label
+  const nodeLabel=language==='en'?'nodes':'节点'
   return <div className={`concept-topology ${kind} ${compact?'compact':''}`}>
-    <div className="concept-topology-caption"><b>{topology.label}</b><span>{scale} 节点</span></div>
-    <svg className="concept-topology-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-label={`${topology.label}，${scale} 节点`}>
+    <div className="concept-topology-caption"><b>{topologyLabel}</b><span>{scale} {nodeLabel}</span></div>
+    <svg className="concept-topology-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-label={`${topologyLabel}, ${scale} ${nodeLabel}`}>
       <g className="topology-svg-edges">{topology.edges.map(([from,to,tone],index)=>{const a=topology.points[from],b=topology.points[to];return <line key={index} className={tone??''} x1={a.x} y1={a.y} x2={b.x} y2={b.y}/>})}</g>
       <g className="topology-svg-nodes">{topology.points.map((point,index)=><rect key={index} className={point.tone??''} x={point.x-1.2} y={point.y-3} width="2.4" height="6" rx="1"/>)}</g>
     </svg>
@@ -220,6 +222,9 @@ function ConceptTopology({kind,scale,compact=false}:{kind:TopologyKind;scale:num
 }
 
 function ConceptPlanningDemo({onToggle}:{onToggle:()=>void}){
+  const [language,setLanguage]=useState<'zh'|'en'>('zh')
+  const en=language==='en'
+  const text=(zh:string,english:string)=>en?english:zh
   const [progress,setProgress]=useState(0)
   type ConceptPriority='performance'|'cost'|'reliability'|'balanced'
   const [priorities,setPriorities]=useState<ConceptPriority[]>(['performance','balanced'])
@@ -228,12 +233,12 @@ function ConceptPlanningDemo({onToggle}:{onToggle:()=>void}){
   const [requirements,setRequirements]=useState({ttft:1500,tpot:40,cost:92,availability:99.95,redundancy:2})
   const timer=useRef<number|null>(null)
   const done=progress>=100
-  const phase=progress<18?'模型负载画像':progress<44?'P / D 实例重组':progress<68?'KV Cache 分层迁移':progress<88?'网络拓扑重构':progress<100?'联合性能验证':'联合寻优完成'
+  const phase=progress<18?text('模型负载画像','Model workload profiling'):progress<44?text('P / D 实例重组','P / D instance restructuring'):progress<68?text('KV Cache 分层迁移','KV Cache tier migration'):progress<88?text('网络拓扑重构','Network topology restructuring'):progress<100?text('联合性能验证','Joint performance validation'):text('联合寻优完成','Joint optimization complete')
   const plans={
-    performance:{label:'性能优先',topology:'dragonfly',p:28,d:14,nodes:42,throughput:6.8,ttft:1080,tpot:30,util:74,cost:112,availability:'99.95%',network:'Dragonfly+ · 800G',networkNote:'6 Group × 7 节点 · 低直径全局链路 · 1:1 注入带宽',kv:'HBM → DDR → SSD',kvHit:87,focus:'吞吐 6.8 M tok/s · TTFT 1,080 ms'},
-    cost:{label:'成本优先',topology:'torus3d',p:20,d:10,nodes:30,throughput:5.2,ttft:1660,tpot:46,util:88,cost:78,availability:'99.92%',network:'3D Torus · 400G',networkNote:'3 × 2 × 5 节点 · 6 邻接链路 · 拓扑感知放置',kv:'HBM → DDR 共享池',kvHit:77,focus:'成本指数 78 · 资源利用率 88%'},
-    reliability:{label:'可靠性优先',topology:'dualClos',p:28,d:16,nodes:44,throughput:5.9,ttft:1480,tpot:40,util:72,cost:115,availability:'99.99%',network:'双平面 Rail Fat-Tree · 400G',networkNote:'无阻塞 1:1 · A/B Fabric 隔离 · N+1 关键链路',kv:'HBM → DDR 双副本',kvHit:83,focus:'可用性 99.99% · 双平面冗余'},
-    balanced:{label:'综合最优',topology:'railClos',p:24,d:13,nodes:37,throughput:6.1,ttft:1420,tpot:38,util:81,cost:94,availability:'99.97%',network:'Rail-Optimized CLOS · 400G',networkNote:'P/D Rail 亲和 · 收敛比 1.5:1 · 关键上联冗余',kv:'HBM → DDR → SSD 热分层',kvHit:84,focus:'吞吐 6.1 M tok/s · 成本指数 94 · 可用性 99.97%'},
+    performance:{label:text('性能优先','Performance'),topology:'dragonfly',p:28,d:14,nodes:42,throughput:6.8,ttft:1080,tpot:30,util:74,cost:112,availability:'99.95%',network:'Dragonfly+ · 800G',networkNote:text('6 Group × 7 节点 · 低直径全局链路 · 1:1 注入带宽','6 groups × 7 nodes · Low-diameter global links · 1:1 injection bandwidth'),kv:'HBM → DDR → SSD',kvHit:87,focus:text('吞吐 6.8 M tok/s · TTFT 1,080 ms','Throughput 6.8 M tok/s · TTFT 1,080 ms')},
+    cost:{label:text('成本优先','Cost'),topology:'torus3d',p:20,d:10,nodes:30,throughput:5.2,ttft:1660,tpot:46,util:88,cost:78,availability:'99.92%',network:'3D Torus · 400G',networkNote:text('3 × 2 × 5 节点 · 6 邻接链路 · 拓扑感知放置','3 × 2 × 5 nodes · 6 adjacent links · Topology-aware placement'),kv:text('HBM → DDR 共享池','HBM → Shared DDR Pool'),kvHit:77,focus:text('成本指数 78 · 资源利用率 88%','Cost index 78 · Resource utilization 88%')},
+    reliability:{label:text('可靠性优先','Reliability'),topology:'dualClos',p:28,d:16,nodes:44,throughput:5.9,ttft:1480,tpot:40,util:72,cost:115,availability:'99.99%',network:text('双平面 Rail Fat-Tree · 400G','Dual-Plane Rail Fat-Tree · 400G'),networkNote:text('无阻塞 1:1 · A/B Fabric 隔离 · N+1 关键链路','Non-blocking 1:1 · Isolated A/B fabrics · N+1 critical links'),kv:text('HBM → DDR 双副本','HBM → Dual-Replica DDR'),kvHit:83,focus:text('可用性 99.99% · 双平面冗余','Availability 99.99% · Dual-plane redundancy')},
+    balanced:{label:text('综合最优','Balanced'),topology:'railClos',p:24,d:13,nodes:37,throughput:6.1,ttft:1420,tpot:38,util:81,cost:94,availability:'99.97%',network:'Rail-Optimized CLOS · 400G',networkNote:text('P/D Rail 亲和 · 收敛比 1.5:1 · 关键上联冗余','P/D rail affinity · 1.5:1 convergence · Redundant critical uplinks'),kv:text('HBM → DDR → SSD 热分层','HBM → DDR → SSD Hot Tiering'),kvHit:84,focus:text('吞吐 6.1 M tok/s · 成本指数 94 · 可用性 99.97%','Throughput 6.1 M tok/s · Cost index 94 · Availability 99.97%')},
   } as const
   const simulationPriority=priorities[0]??'balanced'
   const plan=plans[simulationPriority]
@@ -302,46 +307,46 @@ function ConceptPlanningDemo({onToggle}:{onToggle:()=>void}){
   },[])
 
   const optionMeta:Record<ConceptPriority,{index:string;description:string;tags:string[]}>= {
-    performance:{index:'01',description:'压低时延，最大化吞吐',tags:['吞吐 ↑','时延 ↓']},
-    cost:{index:'02',description:'满足约束下压缩资源成本',tags:['成本 ↓','利用率 ↑']},
-    reliability:{index:'03',description:'强化冗余与故障域隔离',tags:['SLA ↑','风险 ↓']},
-    balanced:{index:'04',description:'兼顾性能、成本与可靠性',tags:['均衡解','余量适中']},
+    performance:{index:'01',description:text('压低时延，最大化吞吐','Minimize latency and maximize throughput'),tags:[text('吞吐 ↑','Throughput ↑'),text('时延 ↓','Latency ↓')]},
+    cost:{index:'02',description:text('满足约束下压缩资源成本','Reduce resource cost within constraints'),tags:[text('成本 ↓','Cost ↓'),text('利用率 ↑','Utilization ↑')]},
+    reliability:{index:'03',description:text('强化冗余与故障域隔离','Strengthen redundancy and fault isolation'),tags:['SLA ↑',text('风险 ↓','Risk ↓')]},
+    balanced:{index:'04',description:text('兼顾性能、成本与可靠性','Balance performance, cost, and reliability'),tags:[text('均衡解','Balanced'),text('余量适中','Moderate headroom')]},
   }
   const selectedPlans=priorities.map(key=>({key,plan:plans[key]}))
   const planColorClass:Record<ConceptPriority,string>={performance:'plan-performance',cost:'plan-cost',reliability:'plan-reliability',balanced:'plan-balanced'}
   const comparisonMetrics=[
-    {label:'吞吐',unit:'M tok/s',value:(key:ConceptPriority)=>plans[key].throughput,max:7},
+    {label:text('吞吐','Throughput'),unit:'M tok/s',value:(key:ConceptPriority)=>plans[key].throughput,max:7},
     {label:'TTFT P95',unit:'ms',value:(key:ConceptPriority)=>plans[key].ttft,max:1800,inverse:true},
-    {label:'成本指数',unit:'',value:(key:ConceptPriority)=>plans[key].cost,max:120,inverse:true},
-    {label:'可用性',unit:'%',value:(key:ConceptPriority)=>Number(plans[key].availability.replace('%','')),max:100,min:99.9},
+    {label:text('成本指数','Cost Index'),unit:'',value:(key:ConceptPriority)=>plans[key].cost,max:120,inverse:true},
+    {label:text('可用性','Availability'),unit:'%',value:(key:ConceptPriority)=>Number(plans[key].availability.replace('%','')),max:100,min:99.9},
   ]
   const showingPlanDetail=Boolean(activeResult)||(done&&priorities.length===1)
   const currentResultKey=activeResult??(priorities.length===1?priorities[0]:null)
 
   return <div className={`concept-shell concept-v8 ${done?'is-done':hasStarted?'is-running':'is-idle'} ${showingPlanDetail?'showing-detail':''}`}>
-    <Header onToggle={onToggle}/>
+    <Header onToggle={onToggle} language={language} onLanguageChange={setLanguage}/>
     <main className="concept-main">
       <section className="concept-workspace">
         <aside className="concept-decisions">
-          <div className="concept-section-label strategy-title"><span>01 / PLANNING STRATEGY</span><h2>规划策略</h2><p>选择需要参与仿真与对比的候选方案</p></div>
-          <div className="decision-heading"><span>PLAN OPTIONS</span><b>候选方案（可多选）</b><em>已选 {priorities.length}</em></div>
+          <div className="concept-section-label strategy-title"><span>01 / PLANNING STRATEGY</span><h2>{text('规划策略','Planning Strategy')}</h2><p>{text('选择需要参与仿真与对比的候选方案','Select candidate plans for simulation and comparison')}</p></div>
+          <div className="decision-heading"><span>PLAN OPTIONS</span><b>{text('候选方案（可多选）','Candidate Plans (Multi-select)')}</b><em>{text(`已选 ${priorities.length}`,`${priorities.length} selected`)}</em></div>
           <div className="decision-list">
             {(Object.keys(optionMeta) as ConceptPriority[]).map(key=>{const meta=optionMeta[key],selected=priorities.includes(key);return <button key={key} className={selected?'active':''} onClick={()=>togglePriority(key)} aria-pressed={selected}><i>{selected?<Icon name="check" size={12}/>:meta.index}</i><span><b>{plans[key].label}</b><small>{meta.description}</small><u>{meta.tags.map(tag=><em key={tag}>{tag}</em>)}</u></span></button>})}
           </div>
-          <div className="planning-requirements-title"><span>02 / PLANNING REQUIREMENT</span><h2>规划需求</h2><p>模型、SLO、成本与可靠性约束</p></div>
-          <div className="concept-model-summary"><div className="model-layer-stack"><i/><i/><i/><b><span>1.6T</span><em>TOTAL</em></b></div><div><small>MODEL PROFILE</small><strong>DeepSeek-V4-Pro</strong><p>49B Active · MoE Sparse · 1M Context</p><em>峰值请求 3,200 req/s</em></div></div>
+          <div className="planning-requirements-title"><span>02 / PLANNING REQUIREMENT</span><h2>{text('规划需求','Planning Requirements')}</h2><p>{text('模型、SLO、成本与可靠性约束','Model, SLO, cost, and reliability constraints')}</p></div>
+          <div className="concept-model-summary"><div className="model-layer-stack"><i/><i/><i/><b><span>1.6T</span><em>TOTAL</em></b></div><div><small>MODEL PROFILE</small><strong>DeepSeek-V4-Pro</strong><p>49B Active · MoE Sparse · 1M Context</p><em>{text('峰值请求 3,200 req/s','Peak Requests 3,200 req/s')}</em></div></div>
           <div className="requirement-sliders">
             <div className="slider-group"><header><b>SLO</b><span>SERVICE LEVEL OBJECTIVE</span></header><RequirementSlider label="TTFT P95" value={requirements.ttft} min={900} max={2200} step={50} unit="ms" onChange={value=>updateRequirement('ttft',value)}/><RequirementSlider label="TPOT P95" value={requirements.tpot} min={24} max={64} step={2} unit="ms" onChange={value=>updateRequirement('tpot',value)}/></div>
-            <div className="slider-group compact"><header><b>成本</b><span>COST LIMIT</span></header><RequirementSlider label="成本指数上限" value={requirements.cost} min={70} max={120} step={1} unit="" onChange={value=>updateRequirement('cost',value)}/></div>
-            <div className="slider-group compact"><header><b>可靠性</b><span>RELIABILITY</span></header><RequirementSlider label="可用性目标" value={requirements.availability} min={99.9} max={99.99} step={.01} unit="%" digits={2} onChange={value=>updateRequirement('availability',value)}/><RequirementSlider label="冗余等级" value={requirements.redundancy} min={1} max={3} step={1} unit={` · ${['基础','N+1','双活'][requirements.redundancy-1]}`} onChange={value=>updateRequirement('redundancy',value)}/></div>
+            <div className="slider-group compact"><header><b>{text('成本','Cost')}</b><span>COST LIMIT</span></header><RequirementSlider label={text('成本指数上限','Maximum Cost Index')} value={requirements.cost} min={70} max={120} step={1} unit="" onChange={value=>updateRequirement('cost',value)}/></div>
+            <div className="slider-group compact"><header><b>{text('可靠性','Reliability')}</b><span>RELIABILITY</span></header><RequirementSlider label={text('可用性目标','Availability Target')} value={requirements.availability} min={99.9} max={99.99} step={.01} unit="%" digits={2} onChange={value=>updateRequirement('availability',value)}/><RequirementSlider label={text('冗余等级','Redundancy Level')} value={requirements.redundancy} min={1} max={3} step={1} unit={` · ${en?['Basic','N+1','Active-Active'][requirements.redundancy-1]:['基础','N+1','双活'][requirements.redundancy-1]}`} onChange={value=>updateRequirement('redundancy',value)}/></div>
           </div>
-          <button className="start-concept-simulation" onClick={start}><span><Icon name="play" size={14}/>开始仿真规划</span><small>{priorities.length} 组方案 · 联合寻优</small></button>
+          <button className="start-concept-simulation" onClick={start}><span><Icon name="play" size={14}/>{text('开始仿真规划','Start Planning Simulation')}</span><small>{text(`${priorities.length} 组方案 · 联合寻优`,`${priorities.length} PLANS · JOINT OPTIMIZATION`)}</small></button>
         </aside>
 
         <div className="concept-center" aria-hidden={showingPlanDetail}>
           <div className={`concept-orbit-wrap phase-${Math.min(4,Math.floor(progress/22))}`}>
             <div className="concept-progress-ring" style={{background:`conic-gradient(#45d7ee ${progress*3.6}deg, #173346 0deg)`}}>
-              <button className="concept-orbit" onClick={done?start:undefined} disabled={!done} aria-label={done?'重新开始寻优':hasStarted?'寻优进行中':'等待开始仿真规划'}>
+              <button className="concept-orbit" onClick={done?start:undefined} disabled={!done} aria-label={done?text('重新开始寻优','Restart optimization'):hasStarted?text('寻优进行中','Optimization in progress'):text('等待开始仿真规划','Waiting to start planning simulation')}>
                 <div className="orbit-status"><span>{done?'OPTIMAL PLAN':hasStarted?'JOINT SEARCH':'READY'}</span></div>
                 <div className="joint-stack">
                   <div className="joint-model"><span>DEEPSEEK-V4-PRO</span><div>{[0,1,2,3,4].map(x=><i key={x}/>)}</div></div>
@@ -351,28 +356,28 @@ function ConceptPlanningDemo({onToggle}:{onToggle:()=>void}){
                     <span className="decode" style={{flex:liveD}}><strong><i>D</i>{liveD}</strong><div>{Array.from({length:dSlots},(_,x)=><b key={x}/>)}</div></span>
                   </div>
                   <div className="joint-flow kv-flow"><i/><i/></div>
-                  <div className="joint-kv"><span><b>HBM</b><i style={{width:`${hbmUsage}%`}}/><u>{hbmUsage}%</u></span><span><b>DDR</b><i style={{width:`${ddrUsage}%`}}/><u>{ddrUsage}%</u></span><span><b>SSD</b><i style={{width:`${ssdUsage}%`}}/><u>{ssdUsage}%</u></span><em>P/D 联动 · KV HIT {Math.round(63+(plan.kvHit-63)*progress/100)}%</em></div>
+                  <div className="joint-kv"><span><b>HBM</b><i style={{width:`${hbmUsage}%`}}/><u>{hbmUsage}%</u></span><span><b>DDR</b><i style={{width:`${ddrUsage}%`}}/><u>{ddrUsage}%</u></span><span><b>SSD</b><i style={{width:`${ssdUsage}%`}}/><u>{ssdUsage}%</u></span><em>{text('P/D 联动','P/D COORDINATION')} · KV HIT {Math.round(63+(plan.kvHit-63)*progress/100)}%</em></div>
                   <div className="joint-flow topology-flow"><i/><i/><i/></div>
-                  <div className="joint-topology"><ConceptTopology key={topologyKind} kind={topologyKind} scale={networkScale}/></div>
+                  <div className="joint-topology"><ConceptTopology key={topologyKind} kind={topologyKind} scale={networkScale} language={language}/></div>
                 </div>
-                <p className="orbit-phase">{hasStarted?phase:'点击左侧按钮开始仿真规划'}</p>
+                <p className="orbit-phase">{hasStarted?phase:text('点击左侧按钮开始仿真规划','Click the button on the left to start')}</p>
               </button>
             </div>
           </div>
         </div>
 
         {done&&<aside className={`concept-result ${activeResult?'detail-mode':'compare-mode'}`} aria-live="polite">
-          <div className="result-success"><i><Icon name="check" size={17}/></i><span><small>OPTIMIZATION COMPLETE</small><h2>{priorities.length>1&&!activeResult?'多方案量化对比':'方案详情'}</h2></span>{activeResult&&priorities.length>1&&<button className="back-to-compare" onClick={()=>setActiveResult(null)}>返回对比</button>}</div>
+          <div className="result-success"><i><Icon name="check" size={17}/></i><span><small>OPTIMIZATION COMPLETE</small><h2>{priorities.length>1&&!activeResult?text('多方案量化对比','Multi-Plan Comparison'):text('方案详情','Plan Details')}</h2></span>{activeResult&&priorities.length>1&&<button className="back-to-compare" onClick={()=>setActiveResult(null)}>{text('返回对比','Back to Comparison')}</button>}</div>
           <div className={`result-plan-tabs ${currentResultKey?'has-current':''}`}>{selectedPlans.map(({key,plan:item})=>{const isCurrent=currentResultKey===key;return <button key={key} className={`${planColorClass[key]} ${isCurrent?'active':currentResultKey?'inactive':''}`} onClick={()=>setActiveResult(key)} aria-pressed={isCurrent}><i/><span>{item.label}</span></button>})}</div>
           {!activeResult&&priorities.length>1?<div className="multi-plan-comparison">
-            <header><span>QUANTITATIVE COMPARISON</span><b>{selectedPlans.length} 组结果量化对比</b><p>点击顶部方案按钮查看完整配置与图例</p></header>
-            <div className="column-chart">{comparisonMetrics.map(metric=><section key={metric.label}><div className="chart-label"><b>{metric.label}</b><small>{metric.unit}</small></div><div className="chart-columns">{selectedPlans.map(({key,plan:item})=>{const raw=metric.value(key),min=metric.min??0,span=metric.max-min;const height=Math.max(18,((raw-min)/span)*100);return <button key={key} className={planColorClass[key]} onClick={()=>setActiveResult(key)} title={`查看${item.label}`}><em>{raw}</em><i style={{height:`${height}%`}}/><span>{item.label.replace('优先','')}</span></button>})}</div></section>)}</div>
-            <div className="comparison-note"><Icon name="activity" size={14}/><span>柱高按各指标实际量纲归一化展示；TTFT 与成本数值越低越优。</span></div>
-          </div>:<ConceptPlanDetail plan={shownPlan} priority={activeResult??simulationPriority} topology={shownPlan.topology}/>}
+            <header><span>QUANTITATIVE COMPARISON</span><b>{text(`${selectedPlans.length} 组结果量化对比`,`${selectedPlans.length}-PLAN QUANTITATIVE COMPARISON`)}</b><p>{text('点击顶部方案按钮查看完整配置与图例','Select a plan above to view its full configuration and visuals')}</p></header>
+            <div className="column-chart">{comparisonMetrics.map(metric=><section key={metric.label}><div className="chart-label"><b>{metric.label}</b><small>{metric.unit}</small></div><div className="chart-columns">{selectedPlans.map(({key,plan:item})=>{const raw=metric.value(key),min=metric.min??0,span=metric.max-min;const height=Math.max(18,((raw-min)/span)*100);return <button key={key} className={planColorClass[key]} onClick={()=>setActiveResult(key)} title={text(`查看${item.label}`,`View ${item.label}`)}><em>{raw}</em><i style={{height:`${height}%`}}/><span>{en?item.label:item.label.replace('优先','')}</span></button>})}</div></section>)}</div>
+            <div className="comparison-note"><Icon name="activity" size={14}/><span>{text('柱高按各指标实际量纲归一化展示；TTFT 与成本数值越低越优。','Bar heights are normalized by metric scale; lower TTFT and cost values are better.')}</span></div>
+          </div>:<ConceptPlanDetail plan={shownPlan} priority={activeResult??simulationPriority} topology={shownPlan.topology} language={language}/>}
         </aside>}
       </section>
     </main>
-    <footer className="concept-status"><span><i className={done?'done':''}/>{done?`寻优完成 · 已生成 ${priorities.length} 组方案`:hasStarted?`${phase} · ${progress}%`:'等待开始仿真规划'}</span><span>MODEL <b>DEEPSEEK-V4-PRO</b></span><span>PLAN <b>{priorities.map(key=>plans[key].label).join(' / ')}</b></span><span className="concept-status-right">{done?'点击方案查看详情':hasStarted?'P/D · KV CACHE · NETWORK 联合搜索':'方案选择仅更新目标参数'}</span></footer>
+    <footer className="concept-status"><span><i className={done?'done':''}/>{done?text(`寻优完成 · 已生成 ${priorities.length} 组方案`,`OPTIMIZATION COMPLETE · ${priorities.length} PLANS GENERATED`):hasStarted?`${phase} · ${progress}%`:text('等待开始仿真规划','WAITING TO START PLANNING SIMULATION')}</span><span>MODEL <b>DEEPSEEK-V4-PRO</b></span><span>PLAN <b>{priorities.map(key=>plans[key].label).join(' / ')}</b></span><span className="concept-status-right">{done?text('点击方案查看详情','Select a plan to view details'):hasStarted?text('P/D · KV CACHE · NETWORK 联合搜索','P/D · KV CACHE · NETWORK JOINT SEARCH'):text('方案选择仅更新目标参数','Plan selection updates target parameters only')}</span></footer>
   </div>
 }
 
@@ -381,7 +386,9 @@ function RequirementSlider({label,value,min,max,step,unit,digits=0,onChange}:{la
   return <label className="requirement-slider"><span><b>{label}</b><em>{value.toFixed(digits)}{unit}</em></span><input type="range" min={min} max={max} step={step} value={value} style={{background:`linear-gradient(90deg,#45d7ee ${progress}%,#173346 ${progress}%)`}} onChange={event=>onChange(Number(event.target.value))}/></label>
 }
 
-function ConceptPlanDetail({plan,priority,topology}:{plan:{label:string;p:number;d:number;nodes:number;throughput:number;ttft:number;tpot:number;util:number;cost:number;availability:string;network:string;networkNote:string;kv:string;kvHit:number;focus:string};priority:'performance'|'cost'|'reliability'|'balanced';topology:TopologyKind}){
+function ConceptPlanDetail({plan,priority,topology,language}:{plan:{label:string;p:number;d:number;nodes:number;throughput:number;ttft:number;tpot:number;util:number;cost:number;availability:string;network:string;networkNote:string;kv:string;kvHit:number;focus:string};priority:'performance'|'cost'|'reliability'|'balanced';topology:TopologyKind;language:'zh'|'en'}){
+  const en=language==='en'
+  const text=(zh:string,english:string)=>en?english:zh
   const totalInstances=plan.p+plan.d
   const prefillShare=Math.round(plan.p/totalInstances*100)
   const decodeShare=100-prefillShare
@@ -390,14 +397,14 @@ function ConceptPlanDetail({plan,priority,topology}:{plan:{label:string;p:number
   const ssdShare=Math.max(20,plan.kvHit-54)
   return <div className="concept-plan-detail">
     <div className="result-focus"><span>{plan.label}</span><strong>{plan.focus}</strong></div>
-    <div className="result-kpis"><span><small>吞吐</small><b>{plan.throughput}</b><em>M tok/s</em></span><span><small>TTFT P95</small><b>{plan.ttft}</b><em>ms</em></span><span><small>TPOT P95</small><b>{plan.tpot}</b><em>ms</em></span><span><small>可用性</small><b>{plan.availability}</b><em>SLA</em></span></div>
-    <section className="result-plan"><span>规划结果</span><div className="result-chips"><b>P : D&nbsp; {plan.p} : {plan.d}</b><b>{plan.nodes} 节点</b><b>利用率 {plan.util}%</b><b>成本 {plan.cost}</b></div>
+    <div className="result-kpis"><span><small>{text('吞吐','Throughput')}</small><b>{plan.throughput}</b><em>M tok/s</em></span><span><small>TTFT P95</small><b>{plan.ttft}</b><em>ms</em></span><span><small>TPOT P95</small><b>{plan.tpot}</b><em>ms</em></span><span><small>{text('可用性','Availability')}</small><b>{plan.availability}</b><em>SLA</em></span></div>
+    <section className="result-plan"><span>{text('规划结果','PLANNING RESULT')}</span><div className="result-chips"><b>P : D&nbsp; {plan.p} : {plan.d}</b><b>{plan.nodes} {text('节点','Nodes')}</b><b>{text('利用率','Utilization')} {plan.util}%</b><b>{text('成本','Cost')} {plan.cost}</b></div>
       <div className="detail-visual-grid">
-        <div className="detail-visual-card topology-card"><header><small>NETWORK TOPOLOGY</small><b>网络拓扑</b></header><ConceptTopology kind={topology} scale={plan.nodes}/><footer><span><i className="network"/>{plan.network}</span></footer></div>
-        <div className="detail-visual-card pd-card"><header><small>PREFILL / DECODE</small><b>P/D 实例配比</b></header><div className="pd-visual"><span className="prefill" style={{flex:plan.p}}><small>PREFILL</small><strong>{plan.p}</strong><em>{prefillShare}%</em><i>{Array.from({length:Math.min(10,Math.ceil(plan.p/3))},(_,index)=><b key={index}/>)}</i></span><u><i/><i/><i/></u><span className="decode" style={{flex:plan.d}}><small>DECODE</small><strong>{plan.d}</strong><em>{decodeShare}%</em><i>{Array.from({length:Math.min(8,Math.ceil(plan.d/2))},(_,index)=><b key={index}/>)}</i></span></div><footer><span><i className="prefill"/>Prefill {plan.p}</span><span><i className="decode"/>Decode {plan.d}</span></footer></div>
-        <div className="detail-visual-card kv-card"><header><small>CACHE HIERARCHY</small><b>KV Cache 分层结构</b></header><div className="kv-layer-visual"><span className="hbm"><b>HBM</b><i><u style={{width:`${plan.kvHit}%`}}/></i><em>热数据 · {plan.kvHit}%</em></span><strong>↓</strong><span className="ddr"><b>DDR</b><i><u style={{width:`${ddrShare}%`}}/></i><em>温数据 · 共享池</em></span>{hasSsd&&<><strong>↓</strong><span className="ssd"><b>SSD</b><i><u style={{width:`${ssdShare}%`}}/></i><em>冷数据 · 回源层</em></span></>}</div><footer><span><i className="cache"/>{plan.kv}</span></footer></div>
+        <div className="detail-visual-card topology-card"><header><small>NETWORK TOPOLOGY</small><b>{text('网络拓扑','Network Topology')}</b></header><ConceptTopology kind={topology} scale={plan.nodes} language={language}/><footer><span><i className="network"/>{plan.network}</span></footer></div>
+        <div className="detail-visual-card pd-card"><header><small>PREFILL / DECODE</small><b>{text('P/D 实例配比','P/D Instance Ratio')}</b></header><div className="pd-visual"><span className="prefill" style={{flex:plan.p}}><small>PREFILL</small><strong>{plan.p}</strong><em>{prefillShare}%</em><i>{Array.from({length:Math.min(10,Math.ceil(plan.p/3))},(_,index)=><b key={index}/>)}</i></span><u><i/><i/><i/></u><span className="decode" style={{flex:plan.d}}><small>DECODE</small><strong>{plan.d}</strong><em>{decodeShare}%</em><i>{Array.from({length:Math.min(8,Math.ceil(plan.d/2))},(_,index)=><b key={index}/>)}</i></span></div><footer><span><i className="prefill"/>Prefill {plan.p}</span><span><i className="decode"/>Decode {plan.d}</span></footer></div>
+        <div className="detail-visual-card kv-card"><header><small>CACHE HIERARCHY</small><b>{text('KV Cache 分层结构','KV Cache Hierarchy')}</b></header><div className="kv-layer-visual"><span className="hbm"><b>HBM</b><i><u style={{width:`${plan.kvHit}%`}}/></i><em>{text('热数据','Hot Data')} · {plan.kvHit}%</em></span><strong>↓</strong><span className="ddr"><b>DDR</b><i><u style={{width:`${ddrShare}%`}}/></i><em>{text('温数据 · 共享池','Warm Data · Shared Pool')}</em></span>{hasSsd&&<><strong>↓</strong><span className="ssd"><b>SSD</b><i><u style={{width:`${ssdShare}%`}}/></i><em>{text('冷数据 · 回源层','Cold Data · Origin Tier')}</em></span></>}</div><footer><span><i className="cache"/>{plan.kv}</span></footer></div>
       </div>
-      <div className="result-network-card detail-network-summary"><div><small>组网类型</small><strong>{plan.network}</strong><p>{plan.networkNote}</p></div><span><b><small>节点规模</small>{plan.nodes}<em> Nodes</em></b><b><small>链路带宽</small>{priority==='performance'?'800':'400'}<em> Gbps</em></b><b><small>网络组织</small>{priority==='performance'?'6 Groups':priority==='cost'?'3 × 2 × 5':priority==='reliability'?'A / B':'Dual Uplink'}<em>{priority==='cost'?' Torus':priority==='performance'?' Dragonfly':' Fabric'}</em></b></span></div>
+      <div className="result-network-card detail-network-summary"><div><small>{text('组网类型','Network Type')}</small><strong>{plan.network}</strong><p>{plan.networkNote}</p></div><span><b><small>{text('节点规模','Node Scale')}</small>{plan.nodes}<em> Nodes</em></b><b><small>{text('链路带宽','Link Bandwidth')}</small>{priority==='performance'?'800':'400'}<em> Gbps</em></b><b><small>{text('网络组织','Network Layout')}</small>{priority==='performance'?'6 Groups':priority==='cost'?'3 × 2 × 5':priority==='reliability'?'A / B':'Dual Uplink'}<em>{priority==='cost'?' Torus':priority==='performance'?' Dragonfly':' Fabric'}</em></b></span></div>
     </section>
   </div>
 }
@@ -494,8 +501,9 @@ function DetailedSimulationTopology({progress}:{progress:number}){
   </svg><div className="network-legend"><span><i className="qwen"/>Qwen3 实例</span><span><i className="deepseek"/>DeepSeek 实例</span><span><i className="rdma"/>400G / Node · Leaf 等带宽上联 · Dual-Spine ECMP</span><span><i className="hccs"/>节点内 HCCS</span></div></div>
 }
 
-function Header({onToggle}:{onToggle:()=>void}){
-  return <header className="header"><button className="brand-switch" onClick={onToggle} title="切换 Demo 方案" aria-label="切换 Demo 方案"><div className="brand-mark"><span/><span/><span/></div><div className="brand"><h1>算存网一体化规划仿真平台</h1><p>INTEGRATED COMPUTING · STORAGE · NETWORK PLANNING SIMULATION PLATFORM</p></div></button><div className="header-context"><button className="ghost-button"><Icon name="download" size={16}/>导出方案</button></div></header>
+function Header({onToggle,language='zh',onLanguageChange}:{onToggle:()=>void;language?:'zh'|'en';onLanguageChange?:(language:'zh'|'en')=>void}){
+  const en=language==='en'
+  return <header className="header"><button className="brand-switch" onClick={onToggle} title={en?'Switch demo concept':'切换 Demo 方案'} aria-label={en?'Switch demo concept':'切换 Demo 方案'}><div className="brand-mark"><span/><span/><span/></div><div className="brand"><h1>{en?'Integrated Computing, Storage & Network Planning':'算存网一体化规划仿真平台'}</h1><p>{en?'PLANNING SIMULATION PLATFORM':'INTEGRATED COMPUTING · STORAGE · NETWORK PLANNING SIMULATION PLATFORM'}</p></div></button><div className="header-context">{onLanguageChange&&<div className="language-switch" role="group" aria-label={en?'Language':'语言切换'}><button className={!en?'active':''} onClick={()=>onLanguageChange('zh')} aria-pressed={!en}>中文</button><button className={en?'active':''} onClick={()=>onLanguageChange('en')} aria-pressed={en}>EN</button></div>}<button className="ghost-button"><Icon name="download" size={16}/>{en?'Export Plan':'导出方案'}</button></div></header>
 }
 
 function WorkflowOverview({onStart}:{onStart:()=>void}){
