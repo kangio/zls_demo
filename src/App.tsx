@@ -235,67 +235,86 @@ function HighDimensionalSearch({progress,hasStarted,done,activeKeys,language,onR
   const en=language==='en'
   const ratio=smoothOptimizationProgress(progress)
   const dimensionLabels=en?['SCHED','ENGINE','PARALLEL','FLOW','PLACEMENT','KV REUSE','KV TIER']:['服务调度','引擎参数','并行策略','数据流','资源放置','KV 复用','KV 分层']
+  const sharedPoints:[number,number][]=[[282,706],[326,674],[374,628],[420,574],[470,523],[522,476],[568,434]]
   const paths:Record<ConceptPriority,{points:[number,number][];loss:number}>={
-    performance:{points:[[500,500],[472,446],[415,386],[347,322],[277,268],[221,224]],loss:.084},
-    cost:{points:[[500,500],[548,474],[603,430],[657,382],[713,340],[770,306]],loss:.112},
-    reliability:{points:[[500,500],[526,548],[559,610],[608,667],[666,713],[726,748]],loss:.067},
-    balanced:{points:[[500,500],[462,540],[425,590],[392,642],[361,699],[329,754]],loss:.093},
+    performance:{points:[[568,434],[616,385],[671,334],[724,294]],loss:.084},
+    cost:{points:[[568,434],[617,414],[672,390],[726,369]],loss:.112},
+    reliability:{points:[[568,434],[603,397],[641,365],[680,340]],loss:.067},
+    balanced:{points:[[568,434],[613,401],[660,363],[706,330]],loss:.093},
   }
-  const currentPoint=(key:ConceptPriority)=>{
-    const points=paths[key].points
-    const scaled=ratio*(points.length-1)
+  const splitAt=.6
+  const trunkRatio=Math.min(1,ratio/splitAt)
+  const branchRatio=Math.max(0,(ratio-splitAt)/(1-splitAt))
+  const pointAlong=(points:[number,number][],pathRatio:number,wobble=0)=>{
+    const scaled=Math.max(0,Math.min(1,pathRatio))*(points.length-1)
     const index=Math.min(points.length-2,Math.floor(scaled))
     const local=scaled-index
     const a=points[index],b=points[index+1]
-    const wobble=hasStarted&&!done?Math.sin(progress*.31+conceptPlanOrder.indexOf(key)*1.8)*7*(1-ratio):0
     return [a[0]+(b[0]-a[0])*local+wobble,a[1]+(b[1]-a[1])*local-wobble*.55]
   }
-  const candidatePoints=Array.from({length:74},(_,index)=>{
-    const angle=index*2.399963
-    const radius=72+((index*47)%330)
-    return {x:500+Math.cos(angle)*radius*(.92+((index*13)%21)/100),y:500+Math.sin(angle)*radius*.72,tone:index%5===0?'accepted':index%3===0?'tested':'queued',delay:(index%17)*.08}
+  const currentPoint=(key:ConceptPriority)=>{
+    const wobble=hasStarted&&!done?Math.sin(progress*.27+conceptPlanOrder.indexOf(key)*1.7)*5*(1-ratio):0
+    return branchRatio>0?pointAlong(paths[key].points,branchRatio,wobble):pointAlong(sharedPoints,trunkRatio,wobble*.35)
+  }
+  const candidatePoints=Array.from({length:92},(_,index)=>{
+    const x=132+((index*83)%736),y=150+((index*137)%690)
+    const directional=(x-y+680)/1360,basinDistance=Math.hypot(x-690,(y-345)*1.12)
+    const quality=Math.max(.12,Math.min(.97,directional*.48+(1-Math.min(1,basinDistance/620))*.52))
+    const infeasible=(index%13===0&&quality<.72)||(x<210&&y>610)
+    return {x,y,quality,tone:infeasible?'infeasible':quality>.72?'promising':quality<.42?'rejected':'tested',delay:(index%19)*.07}
   })
-  const visibleCandidates=Math.round(candidatePoints.length*(hasStarted?Math.max(.12,progress/100):.08))
+  const visibleCandidates=Math.round(candidatePoints.length*(hasStarted?Math.max(.14,progress/100):.08))
+  const objective=(.38+.55*ratio).toFixed(3),loss=(1.42-1.31*ratio).toFixed(3)
+  const delta=hasStarted&&!done?(Math.max(.003,.061*(1-ratio)+Math.abs(Math.sin(progress*.19))*.008)).toFixed(3):'—'
+  const explorationBranches=[{at:14,tone:'rejected',d:'M342 660 C318 620 302 602 270 588',x:270,y:588},{at:24,tone:'infeasible',d:'M402 596 C438 612 462 630 486 654',x:486,y:654},{at:34,tone:'rejected',d:'M451 542 C428 502 405 482 372 466',x:372,y:466},{at:46,tone:'rejected',d:'M505 492 C538 515 563 531 592 553',x:592,y:553},{at:58,tone:'promising',d:'M558 444 C580 421 596 407 616 392',x:616,y:392},{at:70,tone:'infeasible',d:'M613 401 C624 436 642 458 670 472',x:670,y:472}]
   return <div className={`high-d-search ${hasStarted?'search-active':''} ${done?'search-complete':''}`}>
-    <div className="search-title"><span>7D OBJECTIVE LANDSCAPE</span><b>{en?'Multi-objective gradient search':'多目标高维梯度寻优'}</b><small>{en?'PCA PROJECTION · 512 CANDIDATES':'PCA 投影 · 512 个候选组合'}</small></div>
+    <div className="search-title"><span>7D OBJECTIVE LANDSCAPE</span><b>{en?'Multi-objective gradient search':'多目标高维梯度寻优'}</b><small>{en?'PCA PROJECTION · QUALITY-GUIDED SEARCH':'PCA 投影 · 质量引导搜索'}</small></div>
     <svg className="search-manifold" viewBox="0 0 1000 1000" role="img" aria-label={en?'Seven-dimensional multi-objective optimization landscape':'七维多目标寻优空间'}>
       <defs>
         <radialGradient id="searchCore"><stop offset="0" stopColor="#183f51" stopOpacity=".88"/><stop offset=".55" stopColor="#0b2231" stopOpacity=".5"/><stop offset="1" stopColor="#06131f" stopOpacity="0"/></radialGradient>
+        <radialGradient id="qualityBasin"><stop offset="0" stopColor="#4bd9bd" stopOpacity=".22"/><stop offset=".38" stopColor="#32b7c4" stopOpacity=".09"/><stop offset="1" stopColor="#0a2231" stopOpacity="0"/></radialGradient>
+        <linearGradient id="trunkGradient" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stopColor="#405d6b"/><stop offset=".46" stopColor="#3d91a6"/><stop offset="1" stopColor="#77e2d3"/></linearGradient>
         <filter id="searchGlow"><feGaussianBlur stdDeviation="7" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
         <filter id="softBlur"><feGaussianBlur stdDeviation="2.4"/></filter>
       </defs>
       <circle cx="500" cy="500" r="445" fill="url(#searchCore)"/>
+      <g className="quality-regions"><path className="poor-zone" d="M92 606 C165 503 275 520 351 604 C422 683 385 839 245 893 C128 873 73 762 92 606Z"/><ellipse className="quality-basin" cx="688" cy="350" rx="267" ry="226" fill="url(#qualityBasin)"/><path className="quality-ridge" d="M512 476 C562 397 632 326 751 268 C813 238 854 245 895 268"/></g>
       <g className="manifold-grid">
         {[132,206,281,354,424].map((radius,index)=><ellipse key={radius} cx="500" cy="500" rx={radius} ry={radius*(.72+index*.015)} transform={`rotate(${index%2?8:-7} 500 500)`}/>)}
         {dimensionLabels.map((_,index)=>{const angle=-Math.PI/2+index*Math.PI*2/7;return <line key={index} x1="500" y1="500" x2={500+Math.cos(angle)*430} y2={500+Math.sin(angle)*430}/>})}
       </g>
       <g className="manifold-contours">
-        <path d="M178 485 C207 302 365 185 535 213 C704 240 833 347 819 496 C805 649 662 795 488 775 C307 754 151 657 178 485Z"/>
-        <path d="M242 486 C264 356 380 276 522 294 C651 310 757 389 751 500 C744 618 638 705 493 694 C350 683 220 616 242 486Z"/>
-        <path d="M309 493 C324 407 397 347 510 366 C612 382 683 431 678 509 C672 590 598 637 499 625 C396 613 293 583 309 493Z"/>
-        <path d="M381 500 C390 452 436 421 505 429 C570 438 611 463 608 513 C605 558 562 584 500 575 C438 567 372 553 381 500Z"/>
+        <path d="M430 489 C480 309 631 186 787 209 C899 225 942 335 895 454 C844 584 676 617 532 570 C470 550 420 529 430 489Z"/>
+        <path d="M500 466 C540 337 647 249 774 263 C859 273 886 344 850 430 C808 530 684 550 582 517 C535 502 492 493 500 466Z"/>
+        <path d="M562 442 C594 353 670 298 758 307 C819 313 838 365 810 423 C780 489 698 503 626 481 C591 470 555 462 562 442Z"/>
+        <path d="M619 416 C641 361 692 333 749 341 C787 347 799 378 781 415 C760 456 708 465 662 451 C638 444 613 433 619 416Z"/>
       </g>
+      <g className="contour-scores"><text x="448" y="540">Q 0.42</text><text x="514" y="500">0.58</text><text x="580" y="466">0.73</text><text x="637" y="438">0.86</text><text x="690" y="413">0.92</text></g>
       <g className="latent-slices" filter="url(#softBlur)"><ellipse cx="470" cy="490" rx="300" ry="118" transform="rotate(32 500 500)"/><ellipse cx="535" cy="515" rx="276" ry="96" transform="rotate(-38 500 500)"/><ellipse cx="500" cy="500" rx="338" ry="68" transform="rotate(78 500 500)"/></g>
-      <g className="candidate-cloud">{candidatePoints.slice(0,visibleCandidates).map((point,index)=><circle key={index} className={point.tone} cx={point.x} cy={point.y} r={point.tone==='accepted'?4.2:2.6} style={{animationDelay:`${point.delay}s`}}/>)}</g>
-      <g className="gradient-vectors">{Array.from({length:18},(_,index)=>{const a=index*Math.PI*2/18+.12,r=150+(index%4)*62,x=500+Math.cos(a)*r,y=500+Math.sin(a)*r;return <path key={index} d={`M${x} ${y} l${-Math.cos(a+.35)*18} ${-Math.sin(a+.35)*18}`}/>})}</g>
-      <g className="search-origin" filter="url(#searchGlow)"><circle cx="500" cy="500" r="19"/><circle cx="500" cy="500" r="6"/><text x="500" y="535">x₀ · SHARED SEED</text></g>
+      <g className="candidate-cloud">{candidatePoints.slice(0,visibleCandidates).map((point,index)=><circle key={index} className={point.tone} cx={point.x} cy={point.y} r={point.tone==='promising'?4.2:2.7} style={{animationDelay:`${point.delay}s`}}><title>{`quality ${point.quality.toFixed(2)}`}</title></circle>)}</g>
+      <g className="gradient-vectors">{Array.from({length:18},(_,index)=>{const x=190+((index*97)%610),y=220+((index*71)%520),angle=Math.atan2(348-y,690-x),length=15+(index%4)*4;return <path key={index} d={`M${x} ${y} l${Math.cos(angle)*length} ${Math.sin(angle)*length}`}/>})}</g>
+      <g className="pareto-front"><path d="M667 391 C696 342 744 304 803 286"/><text x="754" y="294">PARETO FRONT</text></g>
+      <g className="exploration-branches">{explorationBranches.map((branch,index)=><g key={index} className={`${branch.tone} ${progress>=branch.at?'visible':''}`}><path d={branch.d}/><circle cx={branch.x} cy={branch.y} r="4"/><text x={branch.x+8} y={branch.y-8}>{branch.tone.toUpperCase()}</text></g>)}</g>
+      <g className="shared-search-path"><polyline className="path-ghost" points={sharedPoints.map(point=>point.join(',')).join(' ')}/><polyline className="path-progress" pathLength="1" points={sharedPoints.map(point=>point.join(',')).join(' ')} style={{strokeDashoffset:1-trunkRatio}}/>{sharedPoints.map((point,index)=><circle key={index} cx={point[0]} cy={point[1]} r="4" style={{opacity:trunkRatio>=index/(sharedPoints.length-1)-.02?1:0}}/>)}</g>
+      <g className="search-origin" filter="url(#searchGlow)"><circle cx="282" cy="706" r="19"/><circle cx="282" cy="706" r="6"/><text x="282" y="742">x₀ · SHARED SEED</text></g>
+      {branchRatio===0&&hasStarted&&<g className="shared-candidate current-candidate" transform={`translate(${pointAlong(sharedPoints,trunkRatio)[0]} ${pointAlong(sharedPoints,trunkRatio)[1]})`} filter="url(#searchGlow)"><circle r="13"/><circle r="4"/><path d="M-22 0h-12M22 0h12M0-22v-12M0 22v12"/></g>}
       {conceptPlanOrder.map(key=>{
         const selected=activeKeys.includes(key),points=paths[key].points,current=currentPoint(key)
-        const drawn=points.map((point,index)=>{const pointRatio=index/(points.length-1);const visible=ratio>=pointRatio-.02;return <circle key={index} cx={point[0]} cy={point[1]} r={index===points.length-1?8:4} style={{opacity:selected&&visible?1:0}}/>})
+        const drawn=points.map((point,index)=>{const pointRatio=index/(points.length-1);const visible=branchRatio>=pointRatio-.02;return <circle key={index} cx={point[0]} cy={point[1]} r={index===points.length-1?7:4} style={{opacity:selected&&visible?1:0}}/>})
         return <g key={key} className={`optimization-path ${key} ${selected?'selected':'muted'}`} style={{'--path-color':conceptPlanColors[key]} as React.CSSProperties}>
           <polyline className="path-ghost" points={points.map(point=>point.join(',')).join(' ')}/>
-          <polyline className="path-progress" pathLength="1" points={points.map(point=>point.join(',')).join(' ')} style={{strokeDashoffset:1-ratio}}/>
+          <polyline className="path-progress" pathLength="1" points={points.map(point=>point.join(',')).join(' ')} style={{strokeDashoffset:1-branchRatio}}/>
           <g className="iteration-nodes">{drawn}</g>
-          {selected&&<g className="current-candidate" transform={`translate(${current[0]} ${current[1]})`} filter="url(#searchGlow)"><circle r="13"/><circle r="4"/><path d="M-22 0h-12M22 0h12M0-22v-12M0 22v12"/></g>}
+          {selected&&branchRatio>0&&<g className="current-candidate" transform={`translate(${current[0]} ${current[1]})`} filter="url(#searchGlow)"><circle r="11"/><circle r="3.5"/><path d="M-19 0h-10M19 0h10M0-19v-10M0 19v10"/></g>}
           {done&&selected&&<text className="optimum-label" x={points.at(-1)![0]} y={points.at(-1)![1]-19}>OPTIMUM · {key.slice(0,4).toUpperCase()}</text>}
         </g>
       })}
       {dimensionLabels.map((label,index)=>{const angle=-Math.PI/2+index*Math.PI*2/7,x=500+Math.cos(angle)*456,y=500+Math.sin(angle)*456;return <g className="dimension-label" key={label} transform={`translate(${x} ${y})`}><circle r="16"/><text y="3">{index+1}</text><text className="dimension-name" y="28">{label}</text></g>})}
     </svg>
-    <div className="search-hud left"><span><small>ITERATION</small><b>{String(Math.ceil(progress/4)).padStart(2,'0')} / 25</b></span><span><small>ACTIVE DIM</small><b>{hasStarted?7:0} / 7</b></span><span><small>GRAD NORM</small><b>{hasStarted?(2.84*(1-ratio)+.04).toFixed(3):'—'}</b></span></div>
-    <div className="search-hud right"><span><small>CANDIDATES</small><b>{Math.round(512*progress/100)}</b></span><span><small>FEASIBLE</small><b>{Math.round(58*progress/100)}</b></span><span><small>PROJECTION</small><b>PC₁ / PC₂</b></span></div>
+    <div className="search-hud left"><span><small>ITERATION</small><b>{String(Math.ceil(progress/4)).padStart(2,'0')} / 25</b></span><span className="objective-up"><small>OBJECTIVE ↑</small><b>{objective}</b></span><span><small>GRAD NORM</small><b>{hasStarted?(2.84*(1-ratio)+.04).toFixed(3):'—'}</b></span></div>
+    <div className="search-hud right"><span><small>CANDIDATES</small><b>{Math.round(512*progress/100)}</b></span><span><small>FEASIBLE</small><b>{Math.round(58*progress/100)}</b></span><span className="loss-down"><small>LOSS ↓</small><b>{loss}</b></span><span><small>ACCEPTED Δ</small><b>{delta}</b></span></div>
     <div className="search-losses">{conceptPlanOrder.map(key=><span key={key} className={activeKeys.includes(key)?'active':''} style={{'--path-color':conceptPlanColors[key]} as React.CSSProperties}><i/><small>{key.toUpperCase()}</small><b>{hasStarted?(1.42-(1.42-paths[key].loss)*ratio).toFixed(3):'1.420'}</b></span>)}</div>
-    <div className="search-phase"><i style={{width:`${progress}%`}}/><span>{hasStarted?(done?(en?'Four optima converged':'四个偏好最优解已收敛'):(en?'Estimating gradients across coupled dimensions':'正在估计耦合维度梯度')):(en?'Ready for joint search':'等待启动联合寻优')}</span>{done&&<button onClick={onRestart}>{en?'RESTART':'重新寻优'}</button>}</div>
+    <div className="search-phase"><i style={{width:`${progress}%`}}/><span>{hasStarted?(done?(en?'Pareto optima converged':'Pareto 前沿上的四个偏好解已收敛'):ratio<splitAt?(en?'Rejecting weak candidates · moving toward the quality basin':'淘汰较差候选 · 正在进入高质量区域'):(en?'Refining preferences along the Pareto frontier':'沿 Pareto 前沿细化不同偏好')):(en?'Ready for joint search':'等待启动联合寻优')}</span>{done&&<button onClick={onRestart}>{en?'RESTART':'重新寻优'}</button>}</div>
   </div>
 }
 
