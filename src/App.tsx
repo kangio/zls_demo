@@ -200,6 +200,8 @@ function DimensionProgressBorder({progress}:{progress:number}){
 
 type TopologyKind='clos'|'railClos'|'dualClos'|'torus3d'|'dragonfly'
 type TopologyPoint={x:number;y:number;tone?:'a'|'b'|'endpoint'}
+type ConceptPriority='performance'|'cost'|'reliability'|'balanced'
+type ConceptPlan={label:string;topology:TopologyKind;p:number;d:number;nodes:number;throughput:number;ttft:number;tpot:number;util:number;cost:number;availability:string;network:string;networkNote:string;kv:string;kvHit:number;focus:string}
 const topologyDefinitions:Record<TopologyKind,{label:string;points:TopologyPoint[];edges:[number,number,string?][]}>={
   clos:{label:'2-Tier CLOS',points:[{x:38,y:8,tone:'a'},{x:62,y:8,tone:'a'},{x:18,y:45},{x:39,y:45},{x:61,y:45},{x:82,y:45},{x:10,y:86,tone:'endpoint'},{x:25,y:86,tone:'endpoint'},{x:32,y:86,tone:'endpoint'},{x:46,y:86,tone:'endpoint'},{x:54,y:86,tone:'endpoint'},{x:68,y:86,tone:'endpoint'},{x:75,y:86,tone:'endpoint'},{x:90,y:86,tone:'endpoint'}],edges:[[0,2],[0,3],[0,4],[0,5],[1,2],[1,3],[1,4],[1,5],[2,6],[2,7],[3,8],[3,9],[4,10],[4,11],[5,12],[5,13]]},
   railClos:{label:'Rail-Optimized Fat-Tree',points:[{x:17,y:8,tone:'a'},{x:39,y:8,tone:'a'},{x:61,y:8,tone:'b'},{x:83,y:8,tone:'b'},{x:17,y:47},{x:39,y:47},{x:61,y:47},{x:83,y:47},{x:9,y:87,tone:'endpoint'},{x:25,y:87,tone:'endpoint'},{x:31,y:87,tone:'endpoint'},{x:47,y:87,tone:'endpoint'},{x:53,y:87,tone:'endpoint'},{x:69,y:87,tone:'endpoint'},{x:75,y:87,tone:'endpoint'},{x:91,y:87,tone:'endpoint'}],edges:[[0,4,'a'],[0,5,'a'],[1,4,'a'],[1,5,'a'],[2,6,'b'],[2,7,'b'],[3,6,'b'],[3,7,'b'],[4,8],[4,9],[5,10],[5,11],[6,12],[6,13],[7,14],[7,15]]},
@@ -221,38 +223,132 @@ function ConceptTopology({kind,scale,compact=false,language='zh'}:{kind:Topology
   </div>
 }
 
+const conceptPlanOrder:ConceptPriority[]=['performance','cost','reliability','balanced']
+const conceptPlanColors:Record<ConceptPriority,string>={performance:'#56d9ef',cost:'#58d9ae',reliability:'#9c9fff',balanced:'#f3c66f'}
+
+function smoothOptimizationProgress(progress:number){
+  const raw=Math.max(0,Math.min(1,(progress-8)/88))
+  return raw*raw*(3-2*raw)
+}
+
+function HighDimensionalSearch({progress,hasStarted,done,activeKeys,language,onRestart}:{progress:number;hasStarted:boolean;done:boolean;activeKeys:ConceptPriority[];language:'zh'|'en';onRestart:()=>void}){
+  const en=language==='en'
+  const ratio=smoothOptimizationProgress(progress)
+  const dimensionLabels=en?['SCHED','ENGINE','PARALLEL','FLOW','PLACEMENT','KV REUSE','KV TIER']:['服务调度','引擎参数','并行策略','数据流','资源放置','KV 复用','KV 分层']
+  const paths:Record<ConceptPriority,{points:[number,number][];loss:number}>={
+    performance:{points:[[500,500],[472,446],[415,386],[347,322],[277,268],[221,224]],loss:.084},
+    cost:{points:[[500,500],[548,474],[603,430],[657,382],[713,340],[770,306]],loss:.112},
+    reliability:{points:[[500,500],[526,548],[559,610],[608,667],[666,713],[726,748]],loss:.067},
+    balanced:{points:[[500,500],[462,540],[425,590],[392,642],[361,699],[329,754]],loss:.093},
+  }
+  const currentPoint=(key:ConceptPriority)=>{
+    const points=paths[key].points
+    const scaled=ratio*(points.length-1)
+    const index=Math.min(points.length-2,Math.floor(scaled))
+    const local=scaled-index
+    const a=points[index],b=points[index+1]
+    const wobble=hasStarted&&!done?Math.sin(progress*.31+conceptPlanOrder.indexOf(key)*1.8)*7*(1-ratio):0
+    return [a[0]+(b[0]-a[0])*local+wobble,a[1]+(b[1]-a[1])*local-wobble*.55]
+  }
+  const candidatePoints=Array.from({length:74},(_,index)=>{
+    const angle=index*2.399963
+    const radius=72+((index*47)%330)
+    return {x:500+Math.cos(angle)*radius*(.92+((index*13)%21)/100),y:500+Math.sin(angle)*radius*.72,tone:index%5===0?'accepted':index%3===0?'tested':'queued',delay:(index%17)*.08}
+  })
+  const visibleCandidates=Math.round(candidatePoints.length*(hasStarted?Math.max(.12,progress/100):.08))
+  return <div className={`high-d-search ${hasStarted?'search-active':''} ${done?'search-complete':''}`}>
+    <div className="search-title"><span>7D OBJECTIVE LANDSCAPE</span><b>{en?'Multi-objective gradient search':'多目标高维梯度寻优'}</b><small>{en?'PCA PROJECTION · 512 CANDIDATES':'PCA 投影 · 512 个候选组合'}</small></div>
+    <svg className="search-manifold" viewBox="0 0 1000 1000" role="img" aria-label={en?'Seven-dimensional multi-objective optimization landscape':'七维多目标寻优空间'}>
+      <defs>
+        <radialGradient id="searchCore"><stop offset="0" stopColor="#183f51" stopOpacity=".88"/><stop offset=".55" stopColor="#0b2231" stopOpacity=".5"/><stop offset="1" stopColor="#06131f" stopOpacity="0"/></radialGradient>
+        <filter id="searchGlow"><feGaussianBlur stdDeviation="7" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="softBlur"><feGaussianBlur stdDeviation="2.4"/></filter>
+      </defs>
+      <circle cx="500" cy="500" r="445" fill="url(#searchCore)"/>
+      <g className="manifold-grid">
+        {[132,206,281,354,424].map((radius,index)=><ellipse key={radius} cx="500" cy="500" rx={radius} ry={radius*(.72+index*.015)} transform={`rotate(${index%2?8:-7} 500 500)`}/>)}
+        {dimensionLabels.map((_,index)=>{const angle=-Math.PI/2+index*Math.PI*2/7;return <line key={index} x1="500" y1="500" x2={500+Math.cos(angle)*430} y2={500+Math.sin(angle)*430}/>})}
+      </g>
+      <g className="manifold-contours">
+        <path d="M178 485 C207 302 365 185 535 213 C704 240 833 347 819 496 C805 649 662 795 488 775 C307 754 151 657 178 485Z"/>
+        <path d="M242 486 C264 356 380 276 522 294 C651 310 757 389 751 500 C744 618 638 705 493 694 C350 683 220 616 242 486Z"/>
+        <path d="M309 493 C324 407 397 347 510 366 C612 382 683 431 678 509 C672 590 598 637 499 625 C396 613 293 583 309 493Z"/>
+        <path d="M381 500 C390 452 436 421 505 429 C570 438 611 463 608 513 C605 558 562 584 500 575 C438 567 372 553 381 500Z"/>
+      </g>
+      <g className="latent-slices" filter="url(#softBlur)"><ellipse cx="470" cy="490" rx="300" ry="118" transform="rotate(32 500 500)"/><ellipse cx="535" cy="515" rx="276" ry="96" transform="rotate(-38 500 500)"/><ellipse cx="500" cy="500" rx="338" ry="68" transform="rotate(78 500 500)"/></g>
+      <g className="candidate-cloud">{candidatePoints.slice(0,visibleCandidates).map((point,index)=><circle key={index} className={point.tone} cx={point.x} cy={point.y} r={point.tone==='accepted'?4.2:2.6} style={{animationDelay:`${point.delay}s`}}/>)}</g>
+      <g className="gradient-vectors">{Array.from({length:18},(_,index)=>{const a=index*Math.PI*2/18+.12,r=150+(index%4)*62,x=500+Math.cos(a)*r,y=500+Math.sin(a)*r;return <path key={index} d={`M${x} ${y} l${-Math.cos(a+.35)*18} ${-Math.sin(a+.35)*18}`}/>})}</g>
+      <g className="search-origin" filter="url(#searchGlow)"><circle cx="500" cy="500" r="19"/><circle cx="500" cy="500" r="6"/><text x="500" y="535">x₀ · SHARED SEED</text></g>
+      {conceptPlanOrder.map(key=>{
+        const selected=activeKeys.includes(key),points=paths[key].points,current=currentPoint(key)
+        const drawn=points.map((point,index)=>{const pointRatio=index/(points.length-1);const visible=ratio>=pointRatio-.02;return <circle key={index} cx={point[0]} cy={point[1]} r={index===points.length-1?8:4} style={{opacity:selected&&visible?1:0}}/>})
+        return <g key={key} className={`optimization-path ${key} ${selected?'selected':'muted'}`} style={{'--path-color':conceptPlanColors[key]} as React.CSSProperties}>
+          <polyline className="path-ghost" points={points.map(point=>point.join(',')).join(' ')}/>
+          <polyline className="path-progress" pathLength="1" points={points.map(point=>point.join(',')).join(' ')} style={{strokeDashoffset:1-ratio}}/>
+          <g className="iteration-nodes">{drawn}</g>
+          {selected&&<g className="current-candidate" transform={`translate(${current[0]} ${current[1]})`} filter="url(#searchGlow)"><circle r="13"/><circle r="4"/><path d="M-22 0h-12M22 0h12M0-22v-12M0 22v12"/></g>}
+          {done&&selected&&<text className="optimum-label" x={points.at(-1)![0]} y={points.at(-1)![1]-19}>OPTIMUM · {key.slice(0,4).toUpperCase()}</text>}
+        </g>
+      })}
+      {dimensionLabels.map((label,index)=>{const angle=-Math.PI/2+index*Math.PI*2/7,x=500+Math.cos(angle)*456,y=500+Math.sin(angle)*456;return <g className="dimension-label" key={label} transform={`translate(${x} ${y})`}><circle r="16"/><text y="3">{index+1}</text><text className="dimension-name" y="28">{label}</text></g>})}
+    </svg>
+    <div className="search-hud left"><span><small>ITERATION</small><b>{String(Math.ceil(progress/4)).padStart(2,'0')} / 25</b></span><span><small>ACTIVE DIM</small><b>{hasStarted?7:0} / 7</b></span><span><small>GRAD NORM</small><b>{hasStarted?(2.84*(1-ratio)+.04).toFixed(3):'—'}</b></span></div>
+    <div className="search-hud right"><span><small>CANDIDATES</small><b>{Math.round(512*progress/100)}</b></span><span><small>FEASIBLE</small><b>{Math.round(58*progress/100)}</b></span><span><small>PROJECTION</small><b>PC₁ / PC₂</b></span></div>
+    <div className="search-losses">{conceptPlanOrder.map(key=><span key={key} className={activeKeys.includes(key)?'active':''} style={{'--path-color':conceptPlanColors[key]} as React.CSSProperties}><i/><small>{key.toUpperCase()}</small><b>{hasStarted?(1.42-(1.42-paths[key].loss)*ratio).toFixed(3):'1.420'}</b></span>)}</div>
+    <div className="search-phase"><i style={{width:`${progress}%`}}/><span>{hasStarted?(done?(en?'Four optima converged':'四个偏好最优解已收敛'):(en?'Estimating gradients across coupled dimensions':'正在估计耦合维度梯度')):(en?'Ready for joint search':'等待启动联合寻优')}</span>{done&&<button onClick={onRestart}>{en?'RESTART':'重新寻优'}</button>}</div>
+  </div>
+}
+
+function OptimizationRadar({plans,progress,activeKeys,language}:{plans:Record<ConceptPriority,ConceptPlan>;progress:number;activeKeys:ConceptPriority[];language:'zh'|'en'}){
+  const en=language==='en',ratio=smoothOptimizationProgress(progress)
+  const base=[66,64,67,68,72,65]
+  const targets:Record<ConceptPriority,number[]>={performance:[97,95,61,77,84,96],cost:[74,71,97,95,80,75],reliability:[84,82,58,73,99,92],balanced:[89,88,84,88,93,90]}
+  const labels=en?['THROUGHPUT','LATENCY','COST EFF.','UTILIZATION','RELIABILITY','SCALABILITY']:['吞吐能力','时延表现','成本效率','资源利用','可靠性','扩展能力']
+  const series=conceptPlanOrder.filter(key=>activeKeys.includes(key)).map((key,keyIndex)=>({
+    name:plans[key].label,
+    value:base.map((value,index)=>Math.round(value+(targets[key][index]-value)*ratio+(progress>10&&progress<94?Math.sin(progress*.19+index+keyIndex)*1.1*(1-ratio):0))),
+    symbol:'circle',symbolSize:3,lineStyle:{width:1.5,color:conceptPlanColors[key]},itemStyle:{color:conceptPlanColors[key]},areaStyle:{color:conceptPlanColors[key],opacity:.055},
+  }))
+  const option={animation:true,animationDurationUpdate:520,animationEasingUpdate:'cubicOut',tooltip:{trigger:'item',backgroundColor:'#071824',borderColor:'#31566a',textStyle:{color:'#cfe6ef',fontSize:10}},legend:{top:4,right:8,itemWidth:8,itemHeight:3,textStyle:{color:'#7898a9',fontSize:8},data:series.map(item=>item.name)},radar:{center:['50%','55%'],radius:'67%',shape:'polygon',splitNumber:4,indicator:labels.map(name=>({name,max:100})),axisName:{color:'#66899d',fontSize:8},axisLine:{lineStyle:{color:'rgba(74,118,139,.26)'}},splitLine:{lineStyle:{color:'rgba(74,118,139,.22)'}},splitArea:{areaStyle:{color:['rgba(10,31,45,.32)','rgba(12,40,54,.18)']} }},series:[{type:'radar',data:series}]}
+  return <div className="optimization-radar"><header><span><small>MULTI-OBJECTIVE PROFILE</small><b>{en?'Capability tendency':'方案能力倾向'}</b></span><em>{Math.ceil(progress/4)} / 25 ITERATIONS</em></header><ReactECharts option={option} notMerge lazyUpdate style={{height:'100%',width:'100%'}}/></div>
+}
+
+function OptimizationResultCard({priority,plan,progress,selected,language,onOpen}:{priority:ConceptPriority;plan:ConceptPlan;progress:number;selected:boolean;language:'zh'|'en';onOpen:()=>void}){
+  const en=language==='en',ratio=smoothOptimizationProgress(progress),interpolate=(start:number,end:number)=>Math.round(start+(end-start)*ratio)
+  const p=interpolate(24,plan.p),d=interpolate(12,plan.d),nodes=interpolate(36,plan.nodes),kvHit=interpolate(68,plan.kvHit)
+  const topology:TopologyKind=ratio<.28?'clos':ratio<.7?(priority==='cost'?'torus3d':priority==='performance'?'dragonfly':'railClos'):plan.topology
+  const hasSsd=ratio>.48&&plan.kv.includes('SSD'),ddr=Math.max(38,kvHit-20),ssd=Math.max(18,kvHit-55)
+  const coreValue=priority==='performance'?`${(5.4+(plan.throughput-5.4)*ratio).toFixed(1)} M`:priority==='cost'?`${interpolate(96,plan.cost)}`:priority==='reliability'?`${(99.93+(Number(plan.availability.replace('%',''))-99.93)*ratio).toFixed(2)}%`:`${interpolate(68,91)}`
+  const coreLabel=priority==='performance'?(en?'THROUGHPUT':'吞吐能力'):priority==='cost'?(en?'COST INDEX':'成本指数'):priority==='reliability'?(en?'AVAILABILITY':'可用性'):(en?'BALANCED SCORE':'综合得分')
+  return <button className={`optimization-result-card ${priority} ${selected?'selected':'not-selected'}`} style={{'--plan-color':conceptPlanColors[priority]} as React.CSSProperties} onClick={onOpen} disabled={progress<100||!selected}>
+    <header><span><i/><small>{String(conceptPlanOrder.indexOf(priority)+1).padStart(2,'0')} · {plan.label}</small></span><em>{progress>=100&&selected?(en?'CONVERGED':'已收敛'):progress>0&&selected?(en?'OPTIMIZING':'寻优中'):selected?(en?'SHARED BASELINE':'共同基线'):(en?'NOT SELECTED':'未参与')}</em><strong>{coreValue}<small>{coreLabel}</small></strong></header>
+    <div className="card-visuals">
+      <section className="card-pd"><label>P / D INSTANCE RATIO</label><div><span className="p" style={{flex:p}}><b>P</b><i>{p}</i></span><u><i/><i/><i/></u><span className="d" style={{flex:d}}><b>D</b><i>{d}</i></span></div></section>
+      <section className="card-kv"><label>KV CACHE · HIT {kvHit}%</label><div><span><b>HBM</b><i><u style={{width:`${kvHit}%`}}/></i></span><span><b>DDR</b><i><u style={{width:`${ddr}%`}}/></i></span>{hasSsd&&<span><b>SSD</b><i><u style={{width:`${ssd}%`}}/></i></span>}</div></section>
+      <section className="card-network"><label>NETWORK · {nodes} NODES</label><ConceptTopology key={topology} kind={topology} scale={nodes} compact language={language}/></section>
+    </div>
+  </button>
+}
+
 function ConceptPlanningDemo({onToggle}:{onToggle:()=>void}){
   const [language,setLanguage]=useState<'zh'|'en'>('zh')
   const en=language==='en'
   const text=(zh:string,english:string)=>en?english:zh
   const [progress,setProgress]=useState(0)
-  type ConceptPriority='performance'|'cost'|'reliability'|'balanced'
-  const [priorities,setPriorities]=useState<ConceptPriority[]>(['performance','balanced'])
+  const [priorities,setPriorities]=useState<ConceptPriority[]>(conceptPlanOrder)
   const [activeResult,setActiveResult]=useState<ConceptPriority|null>(null)
   const [hasStarted,setHasStarted]=useState(false)
   const [requirements,setRequirements]=useState({ttft:1500,tpot:40,cost:92,availability:99.95,redundancy:2})
   const timer=useRef<number|null>(null)
   const done=progress>=100
   const phase=progress<18?text('模型负载画像','Model workload profiling'):progress<44?text('P / D 实例重组','P / D instance restructuring'):progress<68?text('KV Cache 分层迁移','KV Cache tier migration'):progress<88?text('网络拓扑重构','Network topology restructuring'):progress<100?text('联合性能验证','Joint performance validation'):text('联合寻优完成','Joint optimization complete')
-  const plans={
+  const plans:Record<ConceptPriority,ConceptPlan>={
     performance:{label:text('性能优先','Performance'),topology:'dragonfly',p:28,d:14,nodes:42,throughput:6.8,ttft:1080,tpot:30,util:74,cost:112,availability:'99.95%',network:'Dragonfly+ · 800G',networkNote:text('6 Group × 7 节点 · 低直径全局链路 · 1:1 注入带宽','6 groups × 7 nodes · Low-diameter global links · 1:1 injection bandwidth'),kv:'HBM → DDR → SSD',kvHit:87,focus:text('吞吐 6.8 M tok/s · TTFT 1,080 ms','Throughput 6.8 M tok/s · TTFT 1,080 ms')},
     cost:{label:text('成本优先','Cost'),topology:'torus3d',p:20,d:10,nodes:30,throughput:5.2,ttft:1660,tpot:46,util:88,cost:78,availability:'99.92%',network:'3D Torus · 400G',networkNote:text('3 × 2 × 5 节点 · 6 邻接链路 · 拓扑感知放置','3 × 2 × 5 nodes · 6 adjacent links · Topology-aware placement'),kv:text('HBM → DDR 共享池','HBM → Shared DDR Pool'),kvHit:77,focus:text('成本指数 78 · 资源利用率 88%','Cost index 78 · Resource utilization 88%')},
     reliability:{label:text('可靠性优先','Reliability'),topology:'dualClos',p:28,d:16,nodes:44,throughput:5.9,ttft:1480,tpot:40,util:72,cost:115,availability:'99.99%',network:text('双平面 Rail Fat-Tree · 400G','Dual-Plane Rail Fat-Tree · 400G'),networkNote:text('无阻塞 1:1 · A/B Fabric 隔离 · N+1 关键链路','Non-blocking 1:1 · Isolated A/B fabrics · N+1 critical links'),kv:text('HBM → DDR 双副本','HBM → Dual-Replica DDR'),kvHit:83,focus:text('可用性 99.99% · 双平面冗余','Availability 99.99% · Dual-plane redundancy')},
     balanced:{label:text('综合最优','Balanced'),topology:'railClos',p:24,d:13,nodes:37,throughput:6.1,ttft:1420,tpot:38,util:81,cost:94,availability:'99.97%',network:'Rail-Optimized CLOS · 400G',networkNote:text('P/D Rail 亲和 · 收敛比 1.5:1 · 关键上联冗余','P/D rail affinity · 1.5:1 convergence · Redundant critical uplinks'),kv:text('HBM → DDR → SSD 热分层','HBM → DDR → SSD Hot Tiering'),kvHit:84,focus:text('吞吐 6.1 M tok/s · 成本指数 94 · 可用性 99.97%','Throughput 6.1 M tok/s · Cost index 94 · Availability 99.97%')},
-  } as const
-  const simulationPriority=priorities[0]??'balanced'
-  const plan=plans[simulationPriority]
-  const shownPlan=plans[activeResult??simulationPriority]
-  const [liveP,liveD]=progress<18?[24,12]:progress<36?[20,14]:progress<54?[30,12]:progress<72?[22,14]:progress<88?[26,14]:[plan.p,plan.d]
-  const totalInstances=liveP+liveD
-  const pSlots=Math.round(12*liveP/totalInstances)
-  const dSlots=12-pSlots
-  const hbmUsage=Math.min(94,Math.round(38+liveP*1.65+liveD*.38))
-  const ddrUsage=Math.min(91,Math.round(31+liveD*1.45+liveP*.42))
-  const ssdUsage=Math.min(70,Math.round(12+(totalInstances-28)*1.3))
-  const finalTopology:TopologyKind=plan.topology
-  const topologyKind:TopologyKind=done?finalTopology:progress<20?'clos':progress<40?'torus3d':progress<60?'dragonfly':progress<80?'railClos':'dualClos'
-  const networkScale=done?plan.nodes:progress<20?24:progress<40?30:progress<60?42:progress<80?37:44
+  }
+  const shownPlan=plans[activeResult??'balanced']
 
   const requirementPresets:Record<ConceptPriority,typeof requirements>={
     performance:{ttft:1200,tpot:32,cost:112,availability:99.95,redundancy:2},
@@ -312,16 +408,7 @@ function ConceptPlanningDemo({onToggle}:{onToggle:()=>void}){
     reliability:{index:'03',description:text('强化冗余与故障域隔离','Strengthen redundancy and fault isolation'),tags:['SLA ↑',text('风险 ↓','Risk ↓')]},
     balanced:{index:'04',description:text('兼顾性能、成本与可靠性','Balance performance, cost, and reliability'),tags:[text('均衡解','Balanced'),text('余量适中','Moderate headroom')]},
   }
-  const selectedPlans=priorities.map(key=>({key,plan:plans[key]}))
-  const planColorClass:Record<ConceptPriority,string>={performance:'plan-performance',cost:'plan-cost',reliability:'plan-reliability',balanced:'plan-balanced'}
-  const comparisonMetrics=[
-    {label:text('吞吐','Throughput'),unit:'M tok/s',value:(key:ConceptPriority)=>plans[key].throughput,max:7},
-    {label:'TTFT P95',unit:'ms',value:(key:ConceptPriority)=>plans[key].ttft,max:1800,inverse:true},
-    {label:text('成本指数','Cost Index'),unit:'',value:(key:ConceptPriority)=>plans[key].cost,max:120,inverse:true},
-    {label:text('可用性','Availability'),unit:'%',value:(key:ConceptPriority)=>Number(plans[key].availability.replace('%','')),max:100,min:99.9},
-  ]
-  const showingPlanDetail=Boolean(activeResult)||(done&&priorities.length===1)
-  const currentResultKey=activeResult??(priorities.length===1?priorities[0]:null)
+  const showingPlanDetail=Boolean(activeResult)
 
   return <div className={`concept-shell concept-v8 ${done?'is-done':hasStarted?'is-running':'is-idle'} ${showingPlanDetail?'showing-detail':''}`}>
     <Header onToggle={onToggle} language={language} onLanguageChange={setLanguage}/>
@@ -344,37 +431,15 @@ function ConceptPlanningDemo({onToggle}:{onToggle:()=>void}){
         </aside>
 
         <div className="concept-center" aria-hidden={showingPlanDetail}>
-          <div className={`concept-orbit-wrap phase-${Math.min(4,Math.floor(progress/22))}`}>
-            <div className="concept-progress-ring" style={{background:`conic-gradient(#45d7ee ${progress*3.6}deg, #173346 0deg)`}}>
-              <button className="concept-orbit" onClick={done?start:undefined} disabled={!done} aria-label={done?text('重新开始寻优','Restart optimization'):hasStarted?text('寻优进行中','Optimization in progress'):text('等待开始仿真规划','Waiting to start planning simulation')}>
-                <div className="orbit-status"><span>{done?'OPTIMAL PLAN':hasStarted?'JOINT SEARCH':'READY'}</span></div>
-                <div className="joint-stack">
-                  <div className="joint-model"><span>DEEPSEEK-V4-PRO</span><div>{[0,1,2,3,4].map(x=><i key={x}/>)}</div></div>
-                  <div className="joint-flow"><i/><i/><i/></div>
-                  <div className="joint-pd">
-                    <span className="prefill" style={{flex:liveP}}><strong><i>P</i>{liveP}</strong><div>{Array.from({length:pSlots},(_,x)=><b key={x}/>)}</div></span>
-                    <span className="decode" style={{flex:liveD}}><strong><i>D</i>{liveD}</strong><div>{Array.from({length:dSlots},(_,x)=><b key={x}/>)}</div></span>
-                  </div>
-                  <div className="joint-flow kv-flow"><i/><i/></div>
-                  <div className="joint-kv"><span><b>HBM</b><i style={{width:`${hbmUsage}%`}}/><u>{hbmUsage}%</u></span><span><b>DDR</b><i style={{width:`${ddrUsage}%`}}/><u>{ddrUsage}%</u></span><span><b>SSD</b><i style={{width:`${ssdUsage}%`}}/><u>{ssdUsage}%</u></span><em>{text('P/D 联动','P/D COORDINATION')} · KV HIT {Math.round(63+(plan.kvHit-63)*progress/100)}%</em></div>
-                  <div className="joint-flow topology-flow"><i/><i/><i/></div>
-                  <div className="joint-topology"><ConceptTopology key={topologyKind} kind={topologyKind} scale={networkScale} language={language}/></div>
-                </div>
-                <p className="orbit-phase">{hasStarted?phase:text('点击左侧按钮开始仿真规划','Click the button on the left to start')}</p>
-              </button>
-            </div>
-          </div>
+          <HighDimensionalSearch progress={progress} hasStarted={hasStarted} done={done} activeKeys={priorities} language={language} onRestart={start}/>
         </div>
 
-        {done&&<aside className={`concept-result ${activeResult?'detail-mode':'compare-mode'}`} aria-live="polite">
-          <div className="result-success"><i><Icon name="check" size={17}/></i><span><small>OPTIMIZATION COMPLETE</small><h2>{priorities.length>1&&!activeResult?text('多方案量化对比','Multi-Plan Comparison'):text('方案详情','Plan Details')}</h2></span>{activeResult&&priorities.length>1&&<button className="back-to-compare" onClick={()=>setActiveResult(null)}>{text('返回对比','Back to Comparison')}</button>}</div>
-          <div className={`result-plan-tabs ${currentResultKey?'has-current':''}`}>{selectedPlans.map(({key,plan:item})=>{const isCurrent=currentResultKey===key;return <button key={key} className={`${planColorClass[key]} ${isCurrent?'active':currentResultKey?'inactive':''}`} onClick={()=>setActiveResult(key)} aria-pressed={isCurrent}><i/><span>{item.label}</span></button>})}</div>
-          {!activeResult&&priorities.length>1?<div className="multi-plan-comparison">
-            <header><span>QUANTITATIVE COMPARISON</span><b>{text(`${selectedPlans.length} 组结果量化对比`,`${selectedPlans.length}-PLAN QUANTITATIVE COMPARISON`)}</b><p>{text('点击顶部方案按钮查看完整配置与图例','Select a plan above to view its full configuration and visuals')}</p></header>
-            <div className="column-chart">{comparisonMetrics.map(metric=><section key={metric.label}><div className="chart-label"><b>{metric.label}</b><small>{metric.unit}</small></div><div className="chart-columns">{selectedPlans.map(({key,plan:item})=>{const raw=metric.value(key),min=metric.min??0,span=metric.max-min;const height=Math.max(18,((raw-min)/span)*100);return <button key={key} className={planColorClass[key]} onClick={()=>setActiveResult(key)} title={text(`查看${item.label}`,`View ${item.label}`)}><em>{raw}</em><i style={{height:`${height}%`}}/><span>{en?item.label:item.label.replace('优先','')}</span></button>})}</div></section>)}</div>
-            <div className="comparison-note"><Icon name="activity" size={14}/><span>{text('柱高按各指标实际量纲归一化展示；TTFT 与成本数值越低越优。','Bar heights are normalized by metric scale; lower TTFT and cost values are better.')}</span></div>
-          </div>:<ConceptPlanDetail plan={shownPlan} priority={activeResult??simulationPriority} topology={shownPlan.topology} language={language}/>}
-        </aside>}
+        <aside className={`concept-result ${activeResult?'detail-mode':'compare-mode'}`} aria-live="polite">
+          {activeResult?<><div className="result-success"><i><Icon name="check" size={17}/></i><span><small>OPTIMIZATION COMPLETE</small><h2>{text('方案详情','Plan Details')}</h2></span><button className="back-to-compare" onClick={()=>setActiveResult(null)}>{text('返回四方案总览','Back to Overview')}</button></div><ConceptPlanDetail plan={shownPlan} priority={activeResult} topology={shownPlan.topology} language={language}/></>:<div className="optimization-overview">
+            <OptimizationRadar plans={plans} progress={progress} activeKeys={priorities} language={language}/>
+            <div className="optimization-cards">{conceptPlanOrder.map(key=><OptimizationResultCard key={key} priority={key} plan={plans[key]} progress={progress} selected={priorities.includes(key)} language={language} onOpen={()=>setActiveResult(key)}/>)}</div>
+          </div>}
+        </aside>
       </section>
     </main>
     <footer className="concept-status"><span><i className={done?'done':''}/>{done?text(`寻优完成 · 已生成 ${priorities.length} 组方案`,`OPTIMIZATION COMPLETE · ${priorities.length} PLANS GENERATED`):hasStarted?`${phase} · ${progress}%`:text('等待开始仿真规划','WAITING TO START PLANNING SIMULATION')}</span><span>MODEL <b>DEEPSEEK-V4-PRO</b></span><span>PLAN <b>{priorities.map(key=>plans[key].label).join(' / ')}</b></span><span className="concept-status-right">{done?text('点击方案查看详情','Select a plan to view details'):hasStarted?text('P/D · KV CACHE · NETWORK 联合搜索','P/D · KV CACHE · NETWORK JOINT SEARCH'):text('方案选择仅更新目标参数','Plan selection updates target parameters only')}</span></footer>
