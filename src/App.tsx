@@ -231,20 +231,22 @@ function smoothOptimizationProgress(progress:number){
   return raw*raw*(3-2*raw)
 }
 
+function preferenceSearchProgress(progress:number){
+  const total=smoothOptimizationProgress(progress),split=.6
+  return {total,trunk:Math.min(1,total/split),branch:Math.max(0,(total-split)/(1-split)),split}
+}
+
 function HighDimensionalSearch({progress,hasStarted,done,activeKeys,language,onRestart}:{progress:number;hasStarted:boolean;done:boolean;activeKeys:ConceptPriority[];language:'zh'|'en';onRestart:()=>void}){
   const en=language==='en'
-  const ratio=smoothOptimizationProgress(progress)
+  const {total:ratio,trunk:trunkRatio,branch:branchRatio,split:splitAt}=preferenceSearchProgress(progress)
   const dimensionLabels=en?['SCHED','ENGINE','PARALLEL','FLOW','PLACEMENT','KV REUSE','KV TIER']:['服务调度','引擎参数','并行策略','数据流','资源放置','KV 复用','KV 分层']
   const sharedPoints:[number,number][]=[[282,706],[326,674],[374,628],[420,574],[470,523],[522,476],[568,434]]
-  const paths:Record<ConceptPriority,{points:[number,number][];loss:number}>={
-    performance:{points:[[568,434],[616,385],[671,334],[724,294]],loss:.084},
-    cost:{points:[[568,434],[617,414],[672,390],[726,369]],loss:.112},
-    reliability:{points:[[568,434],[603,397],[641,365],[680,340]],loss:.067},
-    balanced:{points:[[568,434],[613,401],[660,363],[706,330]],loss:.093},
+  const paths:Record<ConceptPriority,{points:[number,number][]}>={
+    performance:{points:[[568,434],[620,390],[690,340],[758,300]]},
+    cost:{points:[[568,434],[600,425],[635,405],[670,388]]},
+    reliability:{points:[[568,434],[606,410],[650,380],[690,356]]},
+    balanced:{points:[[568,434],[614,402],[670,360],[720,326]]},
   }
-  const splitAt=.6
-  const trunkRatio=Math.min(1,ratio/splitAt)
-  const branchRatio=Math.max(0,(ratio-splitAt)/(1-splitAt))
   const pointAlong=(points:[number,number][],pathRatio:number,wobble=0)=>{
     const scaled=Math.max(0,Math.min(1,pathRatio))*(points.length-1)
     const index=Math.min(points.length-2,Math.floor(scaled))
@@ -256,7 +258,7 @@ function HighDimensionalSearch({progress,hasStarted,done,activeKeys,language,onR
     const wobble=hasStarted&&!done?Math.sin(progress*.27+conceptPlanOrder.indexOf(key)*1.7)*5*(1-ratio):0
     return branchRatio>0?pointAlong(paths[key].points,branchRatio,wobble):pointAlong(sharedPoints,trunkRatio,wobble*.35)
   }
-  const candidatePoints=Array.from({length:92},(_,index)=>{
+  const candidatePoints=Array.from({length:68},(_,index)=>{
     const x=132+((index*83)%736),y=150+((index*137)%690)
     const directional=(x-y+680)/1360,basinDistance=Math.hypot(x-690,(y-345)*1.12)
     const quality=Math.max(.12,Math.min(.97,directional*.48+(1-Math.min(1,basinDistance/620))*.52))
@@ -264,6 +266,7 @@ function HighDimensionalSearch({progress,hasStarted,done,activeKeys,language,onR
     return {x,y,quality,tone:infeasible?'infeasible':quality>.72?'promising':quality<.42?'rejected':'tested',delay:(index%19)*.07}
   })
   const visibleCandidates=Math.round(candidatePoints.length*(hasStarted?Math.max(.14,progress/100):.08))
+  const paretoRatio=Math.max(0,Math.min(1,branchRatio*1.35))
   const objective=(.38+.55*ratio).toFixed(3),loss=(1.42-1.31*ratio).toFixed(3)
   const delta=hasStarted&&!done?(Math.max(.003,.061*(1-ratio)+Math.abs(Math.sin(progress*.19))*.008)).toFixed(3):'—'
   const explorationBranches=[{at:14,tone:'rejected',d:'M342 660 C318 620 302 602 270 588',x:270,y:588},{at:24,tone:'infeasible',d:'M402 596 C438 612 462 630 486 654',x:486,y:654},{at:34,tone:'rejected',d:'M451 542 C428 502 405 482 372 466',x:372,y:466},{at:46,tone:'rejected',d:'M505 492 C538 515 563 531 592 553',x:592,y:553},{at:58,tone:'promising',d:'M558 444 C580 421 596 407 616 392',x:616,y:392},{at:70,tone:'infeasible',d:'M613 401 C624 436 642 458 670 472',x:670,y:472}]
@@ -293,8 +296,8 @@ function HighDimensionalSearch({progress,hasStarted,done,activeKeys,language,onR
       <g className="latent-slices" filter="url(#softBlur)"><ellipse cx="470" cy="490" rx="300" ry="118" transform="rotate(32 500 500)"/><ellipse cx="535" cy="515" rx="276" ry="96" transform="rotate(-38 500 500)"/><ellipse cx="500" cy="500" rx="338" ry="68" transform="rotate(78 500 500)"/></g>
       <g className="candidate-cloud">{candidatePoints.slice(0,visibleCandidates).map((point,index)=><circle key={index} className={point.tone} cx={point.x} cy={point.y} r={point.tone==='promising'?4.2:2.7} style={{animationDelay:`${point.delay}s`}}><title>{`quality ${point.quality.toFixed(2)}`}</title></circle>)}</g>
       <g className="gradient-vectors">{Array.from({length:18},(_,index)=>{const x=190+((index*97)%610),y=220+((index*71)%520),angle=Math.atan2(348-y,690-x),length=15+(index%4)*4;return <path key={index} d={`M${x} ${y} l${Math.cos(angle)*length} ${Math.sin(angle)*length}`}/>})}</g>
-      <g className="pareto-front"><path d="M667 391 C696 342 744 304 803 286"/><text x="754" y="294">PARETO FRONT</text></g>
-      <g className="exploration-branches">{explorationBranches.map((branch,index)=><g key={index} className={`${branch.tone} ${progress>=branch.at?'visible':''}`}><path d={branch.d}/><circle cx={branch.x} cy={branch.y} r="4"/><text x={branch.x+8} y={branch.y-8}>{branch.tone.toUpperCase()}</text></g>)}</g>
+      <g className="pareto-envelope" style={{opacity:paretoRatio}}><path className="dominated-region" d="M650 405 C683 360 729 319 785 292 L835 426 C758 452 693 451 650 405Z"/><path className="pareto-line" pathLength="1" d="M650 405 C683 360 729 319 785 292" style={{strokeDashoffset:1-paretoRatio}}/>{[[650,405],[670,388],[690,356],[720,326],[758,300],[785,292]].slice(0,Math.max(1,Math.ceil(6*paretoRatio))).map((point,index)=><circle key={index} cx={point[0]} cy={point[1]} r={index===3?5:3.5}/>)}{paretoRatio>.2&&<><text className="pareto-label" x="742" y="278">PARETO FRONT · 7D PROJECTION</text><text className="dominated-label" x="713" y="438">DOMINATED SOLUTIONS</text></>}{done&&<g className="knee-point"><circle cx="720" cy="326" r="11"/><text x="730" y="321">KNEE POINT · RECOMMENDED</text></g>}</g>
+      <g className="exploration-branches">{explorationBranches.map((branch,index)=>{const visible=progress>=branch.at&&progress<branch.at+18;return <g key={index} className={`${branch.tone} ${visible?'visible':''}`}><path d={branch.d}/><circle cx={branch.x} cy={branch.y} r="4"/>{visible&&<text x={branch.x+8} y={branch.y-8}>{branch.tone.toUpperCase()}</text>}</g>})}</g>
       <g className="shared-search-path"><polyline className="path-ghost" points={sharedPoints.map(point=>point.join(',')).join(' ')}/><polyline className="path-progress" pathLength="1" points={sharedPoints.map(point=>point.join(',')).join(' ')} style={{strokeDashoffset:1-trunkRatio}}/>{sharedPoints.map((point,index)=><circle key={index} cx={point[0]} cy={point[1]} r="4" style={{opacity:trunkRatio>=index/(sharedPoints.length-1)-.02?1:0}}/>)}</g>
       <g className="search-origin" filter="url(#searchGlow)"><circle cx="282" cy="706" r="19"/><circle cx="282" cy="706" r="6"/><text x="282" y="742">x₀ · SHARED SEED</text></g>
       {branchRatio===0&&hasStarted&&<g className="shared-candidate current-candidate" transform={`translate(${pointAlong(sharedPoints,trunkRatio)[0]} ${pointAlong(sharedPoints,trunkRatio)[1]})`} filter="url(#searchGlow)"><circle r="13"/><circle r="4"/><path d="M-22 0h-12M22 0h12M0-22v-12M0 22v12"/></g>}
@@ -313,19 +316,20 @@ function HighDimensionalSearch({progress,hasStarted,done,activeKeys,language,onR
     </svg>
     <div className="search-hud left"><span><small>ITERATION</small><b>{String(Math.ceil(progress/4)).padStart(2,'0')} / 25</b></span><span className="objective-up"><small>OBJECTIVE ↑</small><b>{objective}</b></span><span><small>GRAD NORM</small><b>{hasStarted?(2.84*(1-ratio)+.04).toFixed(3):'—'}</b></span></div>
     <div className="search-hud right"><span><small>CANDIDATES</small><b>{Math.round(512*progress/100)}</b></span><span><small>FEASIBLE</small><b>{Math.round(58*progress/100)}</b></span><span className="loss-down"><small>LOSS ↓</small><b>{loss}</b></span><span><small>ACCEPTED Δ</small><b>{delta}</b></span></div>
-    <div className="search-losses">{conceptPlanOrder.map(key=><span key={key} className={activeKeys.includes(key)?'active':''} style={{'--path-color':conceptPlanColors[key]} as React.CSSProperties}><i/><small>{key.toUpperCase()}</small><b>{hasStarted?(1.42-(1.42-paths[key].loss)*ratio).toFixed(3):'1.420'}</b></span>)}</div>
+    <div className="search-losses">{conceptPlanOrder.map(key=>{const target={performance:96.8,cost:94.3,reliability:98.1,balanced:96.2}[key],fit=68+(84-68)*trunkRatio+(target-84)*branchRatio;return <span key={key} className={activeKeys.includes(key)?'active':''} style={{'--path-color':conceptPlanColors[key]} as React.CSSProperties}><i/><small>{key.toUpperCase()} · TARGET FIT</small><b>{fit.toFixed(1)}<em>%</em></b></span>})}</div>
     <div className="search-phase"><i style={{width:`${progress}%`}}/><span>{hasStarted?(done?(en?'Pareto optima converged':'Pareto 前沿上的四个偏好解已收敛'):ratio<splitAt?(en?'Rejecting weak candidates · moving toward the quality basin':'淘汰较差候选 · 正在进入高质量区域'):(en?'Refining preferences along the Pareto frontier':'沿 Pareto 前沿细化不同偏好')):(en?'Ready for joint search':'等待启动联合寻优')}</span>{done&&<button onClick={onRestart}>{en?'RESTART':'重新寻优'}</button>}</div>
   </div>
 }
 
 function OptimizationRadar({plans,progress,activeKeys,language}:{plans:Record<ConceptPriority,ConceptPlan>;progress:number;activeKeys:ConceptPriority[];language:'zh'|'en'}){
-  const en=language==='en',ratio=smoothOptimizationProgress(progress)
+  const en=language==='en',search=preferenceSearchProgress(progress)
   const base=[66,64,67,68,72,65]
+  const shared=[79,77,76,79,83,78]
   const targets:Record<ConceptPriority,number[]>={performance:[97,95,61,77,84,96],cost:[74,71,97,95,80,75],reliability:[84,82,58,73,99,92],balanced:[89,88,84,88,93,90]}
   const labels=en?['THROUGHPUT','LATENCY','COST EFF.','UTILIZATION','RELIABILITY','SCALABILITY']:['吞吐能力','时延表现','成本效率','资源利用','可靠性','扩展能力']
   const series=conceptPlanOrder.filter(key=>activeKeys.includes(key)).map((key,keyIndex)=>({
     name:plans[key].label,
-    value:base.map((value,index)=>Math.round(value+(targets[key][index]-value)*ratio+(progress>10&&progress<94?Math.sin(progress*.19+index+keyIndex)*1.1*(1-ratio):0))),
+    value:base.map((value,index)=>Math.round(value+(shared[index]-value)*search.trunk+(targets[key][index]-shared[index])*search.branch+(search.branch>0&&progress<94?Math.sin(progress*.19+index+keyIndex)*.75*(1-search.branch):0))),
     symbol:'circle',symbolSize:3,lineStyle:{width:1.5,color:conceptPlanColors[key]},itemStyle:{color:conceptPlanColors[key]},areaStyle:{color:conceptPlanColors[key],opacity:.055},
   }))
   const option={animation:true,animationDurationUpdate:520,animationEasingUpdate:'cubicOut',tooltip:{trigger:'item',backgroundColor:'#071824',borderColor:'#31566a',textStyle:{color:'#cfe6ef',fontSize:10}},legend:{top:4,right:8,itemWidth:8,itemHeight:3,textStyle:{color:'#7898a9',fontSize:8},data:series.map(item=>item.name)},radar:{center:['50%','55%'],radius:'67%',shape:'polygon',splitNumber:4,indicator:labels.map(name=>({name,max:100})),axisName:{color:'#66899d',fontSize:8},axisLine:{lineStyle:{color:'rgba(74,118,139,.26)'}},splitLine:{lineStyle:{color:'rgba(74,118,139,.22)'}},splitArea:{areaStyle:{color:['rgba(10,31,45,.32)','rgba(12,40,54,.18)']} }},series:[{type:'radar',data:series}]}
@@ -333,14 +337,16 @@ function OptimizationRadar({plans,progress,activeKeys,language}:{plans:Record<Co
 }
 
 function OptimizationResultCard({priority,plan,progress,selected,language,onOpen}:{priority:ConceptPriority;plan:ConceptPlan;progress:number;selected:boolean;language:'zh'|'en';onOpen:()=>void}){
-  const en=language==='en',ratio=smoothOptimizationProgress(progress),interpolate=(start:number,end:number)=>Math.round(start+(end-start)*ratio)
-  const p=interpolate(24,plan.p),d=interpolate(12,plan.d),nodes=interpolate(36,plan.nodes),kvHit=interpolate(68,plan.kvHit)
-  const topology:TopologyKind=ratio<.28?'clos':ratio<.7?(priority==='cost'?'torus3d':priority==='performance'?'dragonfly':'railClos'):plan.topology
-  const hasSsd=ratio>.48&&plan.kv.includes('SSD'),ddr=Math.max(38,kvHit-20),ssd=Math.max(18,kvHit-55)
-  const coreValue=priority==='performance'?`${(5.4+(plan.throughput-5.4)*ratio).toFixed(1)} M`:priority==='cost'?`${interpolate(96,plan.cost)}`:priority==='reliability'?`${(99.93+(Number(plan.availability.replace('%',''))-99.93)*ratio).toFixed(2)}%`:`${interpolate(68,91)}`
-  const coreLabel=priority==='performance'?(en?'THROUGHPUT':'吞吐能力'):priority==='cost'?(en?'COST INDEX':'成本指数'):priority==='reliability'?(en?'AVAILABILITY':'可用性'):(en?'BALANCED SCORE':'综合得分')
+  const en=language==='en',search=preferenceSearchProgress(progress)
+  const interpolate=(start:number,shared:number,end:number)=>Math.round(start+(shared-start)*search.trunk+(end-shared)*search.branch)
+  const p=interpolate(24,25,plan.p),d=interpolate(12,13,plan.d),nodes=interpolate(36,38,plan.nodes),kvHit=interpolate(68,78,plan.kvHit)
+  const topology:TopologyKind=search.branch<.2?'clos':plan.topology
+  const hasSsd=search.branch>.45&&plan.kv.includes('SSD'),ddr=Math.max(38,kvHit-20),ssd=Math.max(18,kvHit-55)
+  const targetFit={performance:96.8,cost:94.3,reliability:98.1,balanced:96.2}[priority]
+  const fit=68+(84-68)*search.trunk+(targetFit-84)*search.branch
+  const coreValue=`${fit.toFixed(1)}%`,coreLabel=en?'TARGET FIT':'目标达成度'
   return <button className={`optimization-result-card ${priority} ${selected?'selected':'not-selected'}`} style={{'--plan-color':conceptPlanColors[priority]} as React.CSSProperties} onClick={onOpen} disabled={progress<100||!selected}>
-    <header><span><i/><small>{String(conceptPlanOrder.indexOf(priority)+1).padStart(2,'0')} · {plan.label}</small></span><em>{progress>=100&&selected?(en?'CONVERGED':'已收敛'):progress>0&&selected?(en?'OPTIMIZING':'寻优中'):selected?(en?'SHARED BASELINE':'共同基线'):(en?'NOT SELECTED':'未参与')}</em><strong>{coreValue}<small>{coreLabel}</small></strong></header>
+    <header><span><i/><small>{String(conceptPlanOrder.indexOf(priority)+1).padStart(2,'0')} · {plan.label}</small></span><em>{progress>=100&&selected?(en?'CONVERGED':'已收敛'):progress>0&&selected?(search.branch>0?(en?'PREFERENCE SEARCH':'偏好寻优'):(en?'SHARED SEARCH':'共同寻优')):selected?(en?'SHARED BASELINE':'共同基线'):(en?'NOT SELECTED':'未参与')}</em><strong>{coreValue}<small>{coreLabel}</small></strong></header>
     <div className="card-visuals">
       <section className="card-pd"><label>P / D INSTANCE RATIO</label><div><span className="p" style={{flex:p}}><b>P</b><i>{p}</i></span><u><i/><i/><i/></u><span className="d" style={{flex:d}}><b>D</b><i>{d}</i></span></div></section>
       <section className="card-kv"><label>KV CACHE · HIT {kvHit}%</label><div><span><b>HBM</b><i><u style={{width:`${kvHit}%`}}/></i></span><span><b>DDR</b><i><u style={{width:`${ddr}%`}}/></i></span>{hasSsd&&<span><b>SSD</b><i><u style={{width:`${ssd}%`}}/></i></span>}</div></section>
