@@ -244,36 +244,34 @@ function preferenceSearchProgress(progress:number){
 
 function DimensionGlyph({index}:{index:number}){
   if(index===0)return <g className="dimension-glyph scheduler"><path d="M-20-12h40M-20 0h40M-20 12h40"/><circle cx="9" cy="-12" r="4"/><circle cx="-7" cy="0" r="4"/><circle cx="3" cy="12" r="4"/></g>
-  if(index===1)return <g className="dimension-glyph engine"><rect className="engine-frame" x="-22" y="-20" width="44" height="40" rx="3"/><rect x="-17" y="-14" width="34" height="7" rx="1"/><rect x="-17" y="-3" width="25" height="7" rx="1"/><rect x="-17" y="8" width="31" height="7" rx="1"/><path d="M17 1h4m-3-3 3 3-3 3"/></g>
-  if(index===2)return <g className="dimension-glyph parallel"><rect x="-18" y="-18" width="14" height="14"/><rect x="4" y="-18" width="14" height="14"/><rect x="-18" y="4" width="14" height="14"/><rect x="4" y="4" width="14" height="14"/><circle cx="0" cy="0" r="3"/><path d="M-11-4v4h8M11-4v4H3M-11 4V0h8M11 4V0H3"/></g>
-  if(index===3)return <g className="dimension-glyph flow"><rect x="-16" y="-17" width="9" height="7" rx="1"/><rect x="7" y="-17" width="9" height="7" rx="1"/><rect x="-21" y="10" width="9" height="7" rx="1"/><rect x="-4" y="10" width="9" height="7" rx="1"/><rect x="12" y="10" width="9" height="7" rx="1"/><path d="M-12-10v7M12-10v7M-12-3h24M-17-3v13M0-3v13M17-3v13"/><rect className="flow-packet" x="-4" y="-6" width="8" height="5" rx="1"/></g>
-  if(index===4)return <g className="dimension-glyph topology-cycle">
+  if(index===1)return <g className="dimension-glyph parallel"><rect x="-18" y="-18" width="14" height="14"/><rect x="4" y="-18" width="14" height="14"/><rect x="-18" y="4" width="14" height="14"/><rect x="4" y="4" width="14" height="14"/><circle cx="0" cy="0" r="3"/><path d="M-11-4v4h8M11-4v4H3M-11 4V0h8M11 4V0H3"/></g>
+  if(index===2)return <g className="dimension-glyph topology-cycle">
     <g className="topology-state clos-mini"><rect x="-16" y="-19" width="8" height="6"/><rect x="8" y="-19" width="8" height="6"/><rect x="-22" y="13" width="7" height="6"/><rect x="-4" y="13" width="7" height="6"/><rect x="15" y="13" width="7" height="6"/><path d="M-12-13V0M12-13V0M-19 0h38M-18.5 0v13M-.5 0v13M18.5 0v13"/></g>
     <g className="topology-state torus-mini"><rect x="-17" y="-17" width="8" height="7"/><rect x="9" y="-17" width="8" height="7"/><rect x="-17" y="10" width="8" height="7"/><rect x="9" y="10" width="8" height="7"/><path d="M-9-14h18M-9 14h18M-13-10v20M13-10v20M-13-14C-25-14-25 14-13 14M13-14C25-14 25 14 13 14"/></g>
     <g className="topology-state dragonfly-mini"><circle cx="-15" cy="-12" r="4"/><circle cx="-7" cy="-18" r="4"/><circle cx="-5" cy="-7" r="4"/><circle cx="13" cy="11" r="4"/><circle cx="6" cy="18" r="4"/><circle cx="18" cy="18" r="4"/><path d="M-15-12-7-18-5-7-15-12M13 11 6 18 18 18 13 11M-5-7 13 11M-7-18 18 18"/></g>
   </g>
-  if(index===5)return <g className="dimension-glyph reuse"><rect x="-19" y="-13" width="25" height="25" rx="3"/><rect x="-6" y="-18" width="25" height="25" rx="3"/><path d="M-14-6h13M-14 0h13M0-11h13M0-5h13M-1 12c5 5 11 4 15 0"/><circle className="reuse-pulse" cx="14" cy="12" r="3.5"/></g>
-  return <g className="dimension-glyph tier"><path d="M-20-14h40l-6 8h-28zM-15-3h30L10 5h-20zM-10 8h20l-4 8H-6z"/><path className="tier-transfer" d="M23-12v25m-4-4 4 4 4-4"/></g>
+  if(index===3)return <g className="dimension-glyph tier"><path d="M-20-14h40l-6 8h-28zM-15-3h30L10 5h-20zM-10 8h20l-4 8H-6z"/><path className="tier-transfer" d="M23-12v25m-4-4 4 4 4-4"/></g>
+  return <g className="dimension-glyph pd-ratio"><text x="-23" y="-7">P</text><rect className="p-block" x="-13" y="-16" width="34" height="11" rx="2"/><text x="-23" y="14">D</text><rect className="d-block" x="-13" y="5" width="24" height="11" rx="2"/><path d="M24-11v22m-3-3 3 3 3-3"/></g>
 }
 
 function HighDimensionalSearch({progress,hasStarted,done,activeKeys,language,onRestart}:{progress:number;hasStarted:boolean;done:boolean;activeKeys:ConceptPriority[];language:'zh'|'en';onRestart:()=>void}){
   const en=language==='en'
   const {total:ratio,trunk:trunkRatio,branch:branchRatio,split:splitAt}=preferenceSearchProgress(progress)
-  const dimensionLabels=en?['SCHED','ENGINE','PARALLEL','FLOW','TOPOLOGY','KV REUSE','KV TIER']:['服务调度','引擎参数','并行策略','数据流','网络拓扑','KV 复用','KV 分层']
-  const sharedTrail:[number,number][]=[[310,688],[345,648],[390,592],[430,560]]
+  const dimensionLabels=en?['SCHED PARAMS','PARALLELISM','TOPOLOGY','KV TIERING','P / D RATIO']:['调度参数','并行策略','网络拓扑','KV 分层','P / D 配比']
+  const sharedTrail:[number,number][]=[[305,688],[350,662],[390,614],[430,560]]
   const paths:Record<ConceptPriority,{curve:string;points:[number,number][]}>={
-    performance:{curve:'M430 560 C470 512 489 433 548 395 S728 278 820 306',points:[[470,505],[520,420],[610,350],[720,305],[820,306]]},
-    cost:{curve:'M430 560 C472 530 491 616 548 585 S648 489 720 431',points:[[470,560],[530,590],[600,540],[665,480],[720,431]]},
-    reliability:{curve:'M430 560 C489 505 517 558 579 524 S718 417 808 398',points:[[480,540],[560,535],[650,480],[730,425],[808,398]]},
-    balanced:{curve:'M430 560 C473 535 486 474 543 455 S682 344 765 350',points:[[470,520],[535,460],[620,405],[700,360],[765,350]]},
+    performance:{curve:'M430 560 C452 528 474 470 516 426 C584 356 674 278 820 306',points:[[468,500],[524,416],[635,330],[738,296],[820,306]]},
+    cost:{curve:'M430 560 C458 536 492 538 530 544 C570 548 604 523 640 498 C674 468 698 438 720 431',points:[[474,540],[544,543],[620,512],[682,453],[720,431]]},
+    reliability:{curve:'M430 560 C454 527 486 500 530 505 C578 510 608 512 646 480 C700 424 750 382 808 398',points:[[472,510],[548,506],[630,491],[734,402],[808,398]]},
+    balanced:{curve:'M430 560 C452 529 478 482 520 462 C585 431 662 337 765 350',points:[[469,499],[535,454],[620,405],[700,345],[765,350]]},
   }
-  const sharedCurve='M282 706 C310 690 325 670 346 647 S386 596 430 560'
+  const sharedCurve='M282 706 C301 675 334 704 350 662 C369 616 398 603 430 560'
   const paretoRatio=Math.max(0,Math.min(1,branchRatio*1.8))
   const objective=(.38+.55*ratio).toFixed(3),loss=(1.42-1.31*ratio).toFixed(3)
   const delta=hasStarted&&!done?(Math.max(.003,.061*(1-ratio)+Math.abs(Math.sin(progress*.19))*.008)).toFixed(3):'—'
   return <div className={`high-d-search ${hasStarted?'search-active':''} ${done?'search-complete':''}`}>
-    <div className="search-title"><span>7D OBJECTIVE LANDSCAPE</span><b>{en?'Multi-objective gradient search':'多目标高维梯度寻优'}</b><small>{en?'PCA PROJECTION · QUALITY-GUIDED SEARCH':'PCA 投影 · 质量引导搜索'}</small></div>
-    <svg className="search-manifold" viewBox="0 0 1000 1000" role="img" aria-label={en?'Seven-dimensional multi-objective optimization landscape':'七维多目标寻优空间'}>
+    <div className="search-title"><span>5D OBJECTIVE LANDSCAPE</span><b>{en?'Multi-objective adaptive high-dimensional search':'多目标自适应高维寻优'}</b><small>{en?'PCA PROJECTION · QUALITY-GUIDED SEARCH':'PCA 投影 · 质量引导搜索'}</small></div>
+    <svg className="search-manifold" viewBox="0 0 1000 1000" role="img" aria-label={en?'Five-dimensional multi-objective optimization landscape':'五维多目标寻优空间'}>
       <defs>
         <radialGradient id="searchCore"><stop offset="0" stopColor="#183f51" stopOpacity=".88"/><stop offset=".55" stopColor="#0b2231" stopOpacity=".5"/><stop offset="1" stopColor="#06131f" stopOpacity="0"/></radialGradient>
         <radialGradient id="qualityBasin"><stop offset="0" stopColor="#4bd9bd" stopOpacity=".22"/><stop offset=".38" stopColor="#32b7c4" stopOpacity=".09"/><stop offset="1" stopColor="#0a2231" stopOpacity="0"/></radialGradient>
@@ -281,14 +279,14 @@ function HighDimensionalSearch({progress,hasStarted,done,activeKeys,language,onR
         <filter id="searchGlow"><feGaussianBlur stdDeviation="7" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
         <filter id="softBlur"><feGaussianBlur stdDeviation="2.4"/></filter>
       </defs>
+      <g className="search-core-field" transform="translate(500 500) scale(.82) translate(-500 -500)">
       <circle cx="500" cy="500" r="445" fill="url(#searchCore)"/>
       <g className="quality-regions"><path className="poor-zone" d="M92 606 C165 503 275 520 351 604 C422 683 385 839 245 893 C128 873 73 762 92 606Z"/><ellipse className="quality-basin" cx="688" cy="350" rx="267" ry="226" fill="url(#qualityBasin)"/><path className="quality-ridge" d="M512 476 C562 397 632 326 751 268 C813 238 854 245 895 268"/></g>
       <g className="manifold-grid">
         {[132,206,281,354,424].map((radius,index)=><ellipse key={radius} cx="500" cy="500" rx={radius} ry={radius*(.72+index*.015)} transform={`rotate(${index%2?8:-7} 500 500)`}/>)}
-        {dimensionLabels.map((_,index)=>{const angle=-Math.PI/2+index*Math.PI*2/7;return <line key={index} x1="500" y1="500" x2={500+Math.cos(angle)*430} y2={500+Math.sin(angle)*430}/>})}
+        {dimensionLabels.map((_,index)=>{const angle=-Math.PI/2+index*Math.PI*2/5;return <line key={index} x1="500" y1="500" x2={500+Math.cos(angle)*442} y2={500+Math.sin(angle)*442}/>})}
       </g>
       <g className="manifold-contours">
-        <path d="M430 489 C480 309 631 186 787 209 C899 225 942 335 895 454 C844 584 676 617 532 570 C470 550 420 529 430 489Z"/>
         <path d="M500 466 C540 337 647 249 774 263 C859 273 886 344 850 430 C808 530 684 550 582 517 C535 502 492 493 500 466Z"/>
         <path d="M562 442 C594 353 670 298 758 307 C819 313 838 365 810 423 C780 489 698 503 626 481 C591 470 555 462 562 442Z"/>
         <path d="M619 416 C641 361 692 333 749 341 C787 347 799 378 781 415 C760 456 708 465 662 451 C638 444 613 433 619 416Z"/>
@@ -296,7 +294,7 @@ function HighDimensionalSearch({progress,hasStarted,done,activeKeys,language,onR
       <g className="contour-scores"><text x="448" y="540">Q 0.42</text><text x="514" y="500">0.58</text><text x="580" y="466">0.73</text><text x="637" y="438">0.86</text><text x="690" y="413">0.92</text></g>
       <g className="latent-slices" filter="url(#softBlur)"><ellipse cx="470" cy="490" rx="300" ry="118" transform="rotate(32 500 500)"/><ellipse cx="535" cy="515" rx="276" ry="96" transform="rotate(-38 500 500)"/><ellipse cx="500" cy="500" rx="338" ry="68" transform="rotate(78 500 500)"/></g>
       <g className="gradient-vectors">{Array.from({length:18},(_,index)=>{const x=190+((index*97)%610),y=220+((index*71)%520),angle=Math.atan2(348-y,690-x),length=15+(index%4)*4;return <path key={index} d={`M${x} ${y} l${Math.cos(angle)*length} ${Math.sin(angle)*length}`}/>})}</g>
-      <g className="pareto-envelope" style={{opacity:paretoRatio}}><path className="pareto-sector" d="M615 450 Q704 305 858 250 Q894 342 890 458 Q738 484 615 450Z"/>{paretoRatio>.2&&<><text className="pareto-label" x="756" y="287">PARETO FEASIBLE REGION</text><text className="dominated-label" x="754" y="466">7D PROJECTED FRONTIER</text></>}</g>
+      <g className="pareto-envelope" style={{opacity:paretoRatio}}><path className="pareto-sector" d="M615 450 Q704 305 858 250 Q894 342 890 458 Q738 484 615 450Z"/>{paretoRatio>.2&&<><text className="pareto-label" x="756" y="287">PARETO FEASIBLE REGION</text><text className="dominated-label" x="754" y="466">5D PROJECTED FRONTIER</text></>}</g>
       <g className="shared-search-path"><path className="path-progress" pathLength="1" d={sharedCurve} style={{strokeDashoffset:1-trunkRatio}}/><g className="trail-points shared">{sharedTrail.map((point,index)=>trunkRatio>=(index+1)/sharedTrail.length?<circle key={index} cx={point[0]} cy={point[1]} r="3.5"/>:null)}</g></g>
       {hasStarted&&<g className="search-origin" transform="translate(282 706)" filter="url(#searchGlow)"><circle className="origin-halo" r="28"/><circle className="origin-ring" r="14"/><circle className="origin-core" r="5"/><path d="M-20 0h-8M20 0h8M0-20v-8M0 20v8"/><text y="43">{en?'SEARCH START':'寻优起点'}</text></g>}
       {conceptPlanOrder.map(key=>{
@@ -307,7 +305,8 @@ function HighDimensionalSearch({progress,hasStarted,done,activeKeys,language,onR
           {selected&&<g className="trail-points branch">{paths[key].points.slice(0,-1).map((point,index)=>progress>=acceptedPoints[index].at?<circle key={index} cx={point[0]} cy={point[1]} r="4"/>:null)}{done&&<circle className="optimum-point" cx={paths[key].points.at(-1)![0]} cy={paths[key].points.at(-1)![1]} r="9"/>}</g>}
         </g>
       })}
-      {dimensionLabels.map((label,index)=>{const angle=-Math.PI/2+index*Math.PI*2/7,x=500+Math.cos(angle)*396,y=500+Math.sin(angle)*396;return <g className={`dimension-label dimension-${index+1}`} key={label} transform={`translate(${x} ${y})`}><circle className="dimension-shell" r="62"/><circle className="dimension-inner" r="53"/><circle className="dimension-track" r="57" pathLength="1"/><DimensionGlyph index={index}/><text className="dimension-name" y="79">{label}</text></g>})}
+      </g>
+      {dimensionLabels.map((label,index)=>{const angle=-Math.PI/2+index*Math.PI*2/5,x=500+Math.cos(angle)*444,y=500+Math.sin(angle)*444;return <g className={`dimension-label dimension-${index+1}`} key={label} transform={`translate(${x} ${y})`}><circle className="dimension-shell" r="52"/><circle className="dimension-inner" r="44"/><circle className="dimension-track" r="48" pathLength="1"/><DimensionGlyph index={index}/><text className="dimension-name" y="67">{label}</text></g>})}
     </svg>
     <div className="search-hud left"><span><small>ITERATION</small><b>{String(Math.ceil(progress/4)).padStart(2,'0')} / 25</b></span><span className="objective-up"><small>OBJECTIVE ↑</small><b>{objective}</b></span><span><small>GRAD NORM</small><b>{hasStarted?(2.84*(1-ratio)+.04).toFixed(3):'—'}</b></span></div>
     <div className="search-hud right"><span><small>CANDIDATES</small><b>{Math.round(512*progress/100)}</b></span><span><small>FEASIBLE</small><b>{Math.round(58*progress/100)}</b></span><span className="loss-down"><small>LOSS ↓</small><b>{loss}</b></span><span><small>ACCEPTED Δ</small><b>{delta}</b></span></div>
@@ -327,8 +326,7 @@ function OptimizationRadar({plans,progress,activeKeys,language}:{plans:Record<Co
     symbol:'circle',symbolSize:3,lineStyle:{width:1.5,color:conceptPlanColors[key]},itemStyle:{color:conceptPlanColors[key]},areaStyle:{color:conceptPlanColors[key],opacity:.055},
   }))
   const option={animation:true,animationDurationUpdate:520,animationEasingUpdate:'cubicOut',tooltip:{trigger:'item',backgroundColor:'#071824',borderColor:'#31566a',textStyle:{color:'#cfe6ef',fontSize:10}},legend:{top:4,right:8,itemWidth:8,itemHeight:3,textStyle:{color:'#7898a9',fontSize:8},data:series.map(item=>item.name)},radar:{center:['50%','55%'],radius:'67%',shape:'polygon',splitNumber:4,indicator:labels.map(name=>({name,max:100})),axisName:{color:'#66899d',fontSize:8},axisLine:{lineStyle:{color:'rgba(74,118,139,.26)'}},splitLine:{lineStyle:{color:'rgba(74,118,139,.22)'}},splitArea:{areaStyle:{color:['rgba(10,31,45,.32)','rgba(12,40,54,.18)']} }},series:[{type:'radar',data:series}]}
-  const syncStep=Math.floor(progress/18),syncActive=progress>0&&progress<100&&progress%18<4
-  return <div className={`optimization-radar ${syncActive?`sync-${syncStep%2?'a':'b'}`:''}`}><header><span><small>QUANTIFIED OBJECTIVE METRICS</small><b>{en?'Performance · Cost · Reliability':'性能 · 成本 · 可靠性指标'}</b></span><em><i/> {Math.ceil(progress/4)} / 25 ITERATIONS</em></header><ReactECharts option={option} notMerge lazyUpdate style={{height:'100%',width:'100%'}}/></div>
+  return <div className="optimization-radar"><header><span><small>QUANTIFIED OBJECTIVE METRICS</small><b>{en?'Performance · Cost · Reliability':'性能 · 成本 · 可靠性指标'}</b></span></header><ReactECharts option={option} notMerge lazyUpdate style={{height:'100%',width:'100%'}}/></div>
 }
 
 function OptimizationResultCard({priority,plan,progress,selected,language,onOpen}:{priority:ConceptPriority;plan:ConceptPlan;progress:number;selected:boolean;language:'zh'|'en';onOpen:()=>void}){
@@ -441,7 +439,7 @@ function ConceptPlanningDemo({onToggle}:{onToggle:()=>void}){
   const showingPlanDetail=Boolean(activeResult)
 
   return <div className={`concept-shell concept-v8 ${done?'is-done':hasStarted?'is-running':'is-idle'} ${showingPlanDetail?'showing-detail':''}`}>
-    <Header onToggle={onToggle} language={language} onLanguageChange={setLanguage}/>
+    <Header onToggle={onToggle} language={language} onLanguageChange={setLanguage} showExport={false}/>
     <main className="concept-main">
       <section className="concept-workspace">
         <aside className="concept-decisions">
@@ -476,7 +474,7 @@ function ConceptPlanningDemo({onToggle}:{onToggle:()=>void}){
         </aside>
       </section>
     </main>
-    <footer className="concept-status"><span><i className={done?'done':''}/>{done?text(`寻优完成 · 已生成 ${priorities.length} 组方案`,`OPTIMIZATION COMPLETE · ${priorities.length} PLANS GENERATED`):hasStarted?`${phase} · ${progress}%`:text('等待开始仿真规划','WAITING TO START PLANNING SIMULATION')}</span><span>MODEL <b>DEEPSEEK-V4-PRO</b></span><span>PLAN <b>{priorities.map(key=>plans[key].label).join(' / ')}</b></span><span className="concept-status-right">{done?text('点击方案查看详情','Select a plan to view details'):hasStarted?text('P/D · KV CACHE · NETWORK 联合搜索','P/D · KV CACHE · NETWORK JOINT SEARCH'):text('方案选择仅更新目标参数','Plan selection updates target parameters only')}</span></footer>
+    <footer className="concept-status"><span><i className={done?'done':''}/>{done?text(`寻优完成 · 已生成 ${priorities.length} 组方案`,`OPTIMIZATION COMPLETE · ${priorities.length} PLANS GENERATED`):hasStarted?`${phase} · ${progress}%`:text('等待开始仿真规划','WAITING TO START PLANNING SIMULATION')}</span><span>MODEL <b>DEEPSEEK-V4-PRO</b></span><span>PLAN <b>{priorities.map(key=>plans[key].label).join(' / ')}</b></span>{!done&&<span className="concept-status-right">{hasStarted?text('P/D · KV CACHE · NETWORK 联合搜索','P/D · KV CACHE · NETWORK JOINT SEARCH'):text('方案选择仅更新目标参数','Plan selection updates target parameters only')}</span>}</footer>
   </div>
 }
 
@@ -607,9 +605,9 @@ function DetailedSimulationTopology({progress}:{progress:number}){
   </svg><div className="network-legend"><span><i className="qwen"/>Qwen3 实例</span><span><i className="deepseek"/>DeepSeek 实例</span><span><i className="rdma"/>400G / Node · Leaf 等带宽上联 · Dual-Spine ECMP</span><span><i className="hccs"/>节点内 HCCS</span></div></div>
 }
 
-function Header({onToggle,language='zh',onLanguageChange}:{onToggle:()=>void;language?:'zh'|'en';onLanguageChange?:(language:'zh'|'en')=>void}){
+function Header({onToggle,language='zh',onLanguageChange,showExport=true}:{onToggle:()=>void;language?:'zh'|'en';onLanguageChange?:(language:'zh'|'en')=>void;showExport?:boolean}){
   const en=language==='en'
-  return <header className="header"><button className="brand-switch" onClick={onToggle} title={en?'Switch demo concept':'切换 Demo 方案'} aria-label={en?'Switch demo concept':'切换 Demo 方案'}><div className="brand-mark"><span/><span/><span/></div><div className="brand"><h1>{en?'Integrated Computing, Storage & Network Planning':'算存网一体化规划仿真平台'}</h1><p>{en?'PLANNING SIMULATION PLATFORM':'INTEGRATED COMPUTING · STORAGE · NETWORK PLANNING SIMULATION PLATFORM'}</p></div></button><div className="header-context">{onLanguageChange&&<div className="language-switch" role="group" aria-label={en?'Language':'语言切换'}><button className={!en?'active':''} onClick={()=>onLanguageChange('zh')} aria-pressed={!en}>中文</button><button className={en?'active':''} onClick={()=>onLanguageChange('en')} aria-pressed={en}>EN</button></div>}<button className="ghost-button"><Icon name="download" size={16}/>{en?'Export Plan':'导出方案'}</button></div></header>
+  return <header className="header"><button className="brand-switch" onClick={onToggle} title={en?'Switch demo concept':'切换 Demo 方案'} aria-label={en?'Switch demo concept':'切换 Demo 方案'}><div className="brand-mark"><span/><span/><span/></div><div className="brand"><h1>{en?'Integrated Computing, Storage & Network Planning':'算存网一体化规划仿真平台'}</h1><p>{en?'PLANNING SIMULATION PLATFORM':'INTEGRATED COMPUTING · STORAGE · NETWORK PLANNING SIMULATION PLATFORM'}</p></div></button><div className="header-context">{onLanguageChange&&<div className="language-switch" role="group" aria-label={en?'Language':'语言切换'}><button className={!en?'active':''} onClick={()=>onLanguageChange('zh')} aria-pressed={!en}>中文</button><button className={en?'active':''} onClick={()=>onLanguageChange('en')} aria-pressed={en}>EN</button></div>}{showExport&&<button className="ghost-button"><Icon name="download" size={16}/>{en?'Export Plan':'导出方案'}</button>}</div></header>
 }
 
 function WorkflowOverview({onStart}:{onStart:()=>void}){

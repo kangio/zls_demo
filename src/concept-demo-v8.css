@@ -163,3 +163,15 @@
 @keyframes originEmphasis{0%{opacity:0;transform:translate(282px,706px) scale(.55)}65%{opacity:1;transform:translate(282px,706px) scale(1.12)}100%{transform:translate(282px,706px) scale(1)}}
 @keyframes bestCardRefresh{0%,100%{box-shadow:none}42%{border-color:var(--plan-color);box-shadow:inset 0 0 18px color-mix(in srgb,var(--plan-color) 11%,transparent),0 0 12px color-mix(in srgb,var(--plan-color) 12%,transparent)}}
 @keyframes bestValueRefresh{0%,100%{opacity:1}42%{opacity:.72;color:var(--plan-color)}}
+
+/* V12 · five concrete planning dimensions and compact bounded requirement controls. */
+.pd-ratio text{fill:#8edcea;stroke:none;font:700 9px JetBrains Mono}.pd-ratio .p-block{fill:#123f4e}.pd-ratio .d-block{fill:#292f57;stroke:#9299ed}.search-active:not(.search-complete) .pd-ratio .p-block{animation:pdPrefillRatio 4.6s ease-in-out infinite;transform-box:fill-box;transform-origin:left center}.search-active:not(.search-complete) .pd-ratio .d-block{animation:pdDecodeRatio 4.6s ease-in-out infinite;transform-box:fill-box;transform-origin:left center}
+.concept-v8 .requirement-sliders{gap:3px;grid-template-rows:1.15fr .82fr 1.15fr}.concept-v8 .requirement-sliders .slider-group{min-width:0;box-sizing:border-box;overflow:hidden;padding:3px 7px}.concept-v8 .slider-group header{margin-bottom:1px}.concept-v8 .requirement-slider{min-width:0}.concept-v8 .requirement-slider+.requirement-slider{margin-top:1px}.concept-v8 .requirement-slider>span{min-width:0;line-height:1}.concept-v8 .requirement-slider input{display:block;width:calc(100% - 2px);max-width:100%;height:3px;margin:2px 1px 1px;box-sizing:border-box}.concept-v8 .requirement-slider input::-webkit-slider-thumb{width:8px;height:8px}
+@keyframes pdPrefillRatio{0%,100%{transform:scaleX(.78)}50%{transform:scaleX(1.08)}}
+@keyframes pdDecodeRatio{0%,100%{transform:scaleX(1.08)}50%{transform:scaleX(.8)}}
+
+/* V13 · preserve a scrollable full canvas when browser zoom reduces the viewport. */
+html:has(.concept-v8),body:has(.concept-v8){overflow:auto!important}body:has(.concept-v8)>#root{width:max(100vw,1180px);height:max(100vh,720px);overflow:visible!important}.concept-shell.concept-v8{width:max(100vw,1180px);height:max(100vh,720px);min-width:1180px;min-height:720px}
+
+/* V14 · compact outer dimension ring with an unobstructed optimization core. */
+.concept-v8 .dimension-glyph{transform:scale(1.1)}.concept-v8 .dimension-label .dimension-name{font-size:9px}
