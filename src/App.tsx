@@ -226,10 +226,10 @@ function ConceptTopology({kind,scale,compact=false,language='zh'}:{kind:Topology
 const conceptPlanOrder:ConceptPriority[]=['performance','cost','reliability','balanced']
 const conceptPlanColors:Record<ConceptPriority,string>={performance:'#56d9ef',cost:'#58d9ae',reliability:'#9c9fff',balanced:'#f3c66f'}
 const topologySearchProfiles:Record<ConceptPriority,{at:number;nodes:number;topology:TopologyKind}[]>={
-  performance:[{at:0,nodes:36,topology:'clos'},{at:29,nodes:40,topology:'clos'},{at:47,nodes:44,topology:'railClos'},{at:66,nodes:42,topology:'dragonfly'}],
-  cost:[{at:0,nodes:36,topology:'clos'},{at:37,nodes:34,topology:'railClos'},{at:59,nodes:28,topology:'torus3d'},{at:82,nodes:30,topology:'torus3d'}],
-  reliability:[{at:0,nodes:36,topology:'clos'},{at:33,nodes:40,topology:'railClos'},{at:56,nodes:46,topology:'dualClos'},{at:79,nodes:44,topology:'dualClos'}],
-  balanced:[{at:0,nodes:36,topology:'clos'},{at:41,nodes:38,topology:'dragonfly'},{at:68,nodes:40,topology:'railClos'},{at:88,nodes:37,topology:'railClos'}],
+  performance:[{at:0,nodes:36,topology:'clos'},{at:36,nodes:40,topology:'clos'},{at:49,nodes:44,topology:'railClos'},{at:64,nodes:42,topology:'dragonfly'},{at:79,nodes:42,topology:'dragonfly'}],
+  cost:[{at:0,nodes:36,topology:'clos'},{at:40,nodes:34,topology:'clos'},{at:55,nodes:34,topology:'railClos'},{at:71,nodes:28,topology:'torus3d'},{at:88,nodes:30,topology:'torus3d'}],
+  reliability:[{at:0,nodes:36,topology:'clos'},{at:38,nodes:40,topology:'clos'},{at:52,nodes:40,topology:'railClos'},{at:68,nodes:46,topology:'dualClos'},{at:84,nodes:44,topology:'dualClos'}],
+  balanced:[{at:0,nodes:36,topology:'clos'},{at:43,nodes:38,topology:'clos'},{at:58,nodes:38,topology:'dragonfly'},{at:74,nodes:40,topology:'railClos'},{at:91,nodes:37,topology:'railClos'}],
 }
 
 function smoothOptimizationProgress(progress:number){
@@ -298,11 +298,13 @@ function HighDimensionalSearch({progress,hasStarted,done,activeKeys,language,onR
       <g className="gradient-vectors">{Array.from({length:18},(_,index)=>{const x=190+((index*97)%610),y=220+((index*71)%520),angle=Math.atan2(348-y,690-x),length=15+(index%4)*4;return <path key={index} d={`M${x} ${y} l${Math.cos(angle)*length} ${Math.sin(angle)*length}`}/>})}</g>
       <g className="pareto-envelope" style={{opacity:paretoRatio}}><path className="pareto-sector" d="M615 450 Q704 305 858 250 Q894 342 890 458 Q738 484 615 450Z"/>{paretoRatio>.2&&<><text className="pareto-label" x="756" y="287">PARETO FEASIBLE REGION</text><text className="dominated-label" x="754" y="466">7D PROJECTED FRONTIER</text></>}</g>
       <g className="shared-search-path"><path className="path-progress" pathLength="1" d={sharedCurve} style={{strokeDashoffset:1-trunkRatio}}/><g className="trail-points shared">{sharedTrail.map((point,index)=>trunkRatio>=(index+1)/sharedTrail.length?<circle key={index} cx={point[0]} cy={point[1]} r="3.5"/>:null)}</g></g>
+      {hasStarted&&<g className="search-origin" transform="translate(282 706)" filter="url(#searchGlow)"><circle className="origin-halo" r="28"/><circle className="origin-ring" r="14"/><circle className="origin-core" r="5"/><path d="M-20 0h-8M20 0h8M0-20v-8M0 20v8"/><text y="43">{en?'SEARCH START':'寻优起点'}</text></g>}
       {conceptPlanOrder.map(key=>{
         const selected=activeKeys.includes(key)
+        const acceptedPoints=topologySearchProfiles[key].slice(1)
         return <g key={key} className={`optimization-path ${key} ${selected?'selected':'muted'}`} style={{'--path-color':conceptPlanColors[key]} as React.CSSProperties}>
           <path className="path-progress" pathLength="1" d={paths[key].curve} style={{strokeDashoffset:1-branchRatio}}/>
-          {selected&&<g className="trail-points branch">{paths[key].points.slice(0,-1).map((point,index)=>branchRatio>=(index+1)/(paths[key].points.length-1)?<circle key={index} cx={point[0]} cy={point[1]} r="4"/>:null)}{done&&<circle className="optimum-point" cx={paths[key].points.at(-1)![0]} cy={paths[key].points.at(-1)![1]} r="9"/>}</g>}
+          {selected&&<g className="trail-points branch">{paths[key].points.slice(0,-1).map((point,index)=>progress>=acceptedPoints[index].at?<circle key={index} cx={point[0]} cy={point[1]} r="4"/>:null)}{done&&<circle className="optimum-point" cx={paths[key].points.at(-1)![0]} cy={paths[key].points.at(-1)![1]} r="9"/>}</g>}
         </g>
       })}
       {dimensionLabels.map((label,index)=>{const angle=-Math.PI/2+index*Math.PI*2/7,x=500+Math.cos(angle)*396,y=500+Math.sin(angle)*396;return <g className={`dimension-label dimension-${index+1}`} key={label} transform={`translate(${x} ${y})`}><circle className="dimension-shell" r="62"/><circle className="dimension-inner" r="53"/><circle className="dimension-track" r="57" pathLength="1"/><DimensionGlyph index={index}/><text className="dimension-name" y="79">{label}</text></g>})}
@@ -330,23 +332,26 @@ function OptimizationRadar({plans,progress,activeKeys,language}:{plans:Record<Co
 }
 
 function OptimizationResultCard({priority,plan,progress,selected,language,onOpen}:{priority:ConceptPriority;plan:ConceptPlan;progress:number;selected:boolean;language:'zh'|'en';onOpen:()=>void}){
-  const en=language==='en',search=preferenceSearchProgress(progress)
+  const en=language==='en'
+  const topologyProfile=topologySearchProfiles[priority]
+  const topologyCandidate=topologyProfile.reduce((current,candidate)=>progress>=candidate.at?candidate:current,topologyProfile[0])
+  const candidateIndex=topologyProfile.indexOf(topologyCandidate)
+  const acceptedProgress=candidateIndex===topologyProfile.length-1?100:topologyCandidate.at
+  const search=preferenceSearchProgress(acceptedProgress)
   const interpolate=(start:number,shared:number,end:number)=>Math.round(start+(shared-start)*search.trunk+(end-shared)*search.branch)
   const interpolateCapacity=(start:number,shared:number,end:number)=>Math.round((start+(shared-start)*search.trunk+(end-shared)*search.branch)*10)/10
   const p=interpolate(24,25,plan.p),d=interpolate(12,13,plan.d)
   const hbmKvTB=interpolateCapacity(6.4,7.1,plan.hbmKvTB),ddrTB=interpolateCapacity(48,54,plan.ddrTB),ssdTB=interpolateCapacity(120,132,plan.ssdTB)
-  const topologyProfile=topologySearchProfiles[priority]
-  const topologyCandidate=topologyProfile.reduce((current,candidate)=>progress>=candidate.at?candidate:current,topologyProfile[0])
   const nodes=progress>=100?plan.nodes:topologyCandidate.nodes
   const topology:TopologyKind=progress>=100?plan.topology:topologyCandidate.topology
   const hasSsd=search.branch>.45&&plan.ssdTB>0,capacityScaleTB=180
   const targetFit={performance:96.8,cost:94.3,reliability:98.1,balanced:96.2}[priority]
   const fit=68+(84-68)*search.trunk+(targetFit-84)*search.branch
   const coreValue=`${fit.toFixed(1)}%`,coreLabel=en?'TARGET FIT':'目标达成度'
-  const updateIndex=topologyProfile.findIndex(candidate=>candidate.at>0&&progress>=candidate.at&&progress<candidate.at+3)
+  const updateIndex=topologyProfile.findIndex(candidate=>candidate.at>0&&progress>=candidate.at&&progress<candidate.at+2)
   const syncClass=updateIndex>=0&&selected?`sync-${updateIndex%2?'a':'b'}`:''
   return <button className={`optimization-result-card ${priority} ${selected?'selected':'not-selected'} ${syncClass}`} style={{'--plan-color':conceptPlanColors[priority]} as React.CSSProperties} onClick={onOpen} disabled={progress<100||!selected}>
-    <header><span><i/><small>{String(conceptPlanOrder.indexOf(priority)+1).padStart(2,'0')} · {plan.label}</small></span><em>{progress>=100&&selected?(en?'CONVERGED':'已收敛'):progress>0&&selected?(search.branch>0?(en?'PREFERENCE SEARCH':'偏好寻优'):(en?'SHARED SEARCH':'共同寻优')):selected?(en?'SHARED BASELINE':'共同基线'):(en?'NOT SELECTED':'未参与')}</em><strong>{coreValue}<small>{coreLabel}</small></strong></header>
+    <header><span><i/><small>{String(conceptPlanOrder.indexOf(priority)+1).padStart(2,'0')} · {plan.label}</small></span><em>{progress>=100&&selected?(en?'CONVERGED':'已收敛'):updateIndex>=0&&selected?(en?'BEST UPDATED':'最优解更新'):progress>0&&selected?(en?'CURRENT BEST':'当前最优'):selected?(en?'SHARED BASELINE':'共同基线'):(en?'NOT SELECTED':'未参与')}</em><strong>{coreValue}<small>{coreLabel}</small></strong></header>
     <div className="card-visuals">
       <section className="card-pd"><label>P / D INSTANCE RATIO</label><div><span className="p" style={{flex:p}}><b>P</b><i>{p}</i></span><u><i/><i/><i/></u><span className="d" style={{flex:d}}><b>D</b><i>{d}</i></span></div></section>
       <section className="card-kv"><label>{en?'KV CAPACITY REQUIRED · TB':'KV 容量需求 · TB'}</label><div><span><b>HBM</b><i><u style={{width:`${hbmKvTB/capacityScaleTB*100}%`}}/></i><em>{hbmKvTB.toFixed(1)}</em></span><span><b>DDR</b><i><u style={{width:`${ddrTB/capacityScaleTB*100}%`}}/></i><em>{ddrTB.toFixed(1)}</em></span>{hasSsd&&<span><b>SSD</b><i><u style={{width:`${ssdTB/capacityScaleTB*100}%`}}/></i><em>{ssdTB.toFixed(1)}</em></span>}</div></section>

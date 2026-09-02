@@ -156,3 +156,10 @@
 
 /* Keep comparison topology geometry deterministic across detail/open transitions. */
 .concept-v8 .concept-workspace{transition:none!important}.concept-v8 .card-network>.concept-topology{position:relative!important;inset:auto!important;width:100%!important;height:calc(100% - 9px)!important;min-height:34px;animation:none!important;transform:none!important;contain:layout paint}.concept-v8 .card-network .concept-topology-svg{position:absolute!important;inset:1px 1%!important;width:98%!important;height:calc(100% - 2px)!important;transform:none!important}
+
+/* V11 · accepted-point feedback between the search trajectory and live best cards. */
+.search-origin{animation:originEmphasis .8s cubic-bezier(.2,.75,.25,1) both}.search-origin .origin-halo{fill:rgba(73,216,200,.08)!important;stroke:#63d9c9!important;stroke-width:1.2!important;stroke-dasharray:3 4}.search-origin .origin-ring{fill:#092934!important;stroke:#8ce8da!important;stroke-width:2.4!important}.search-origin .origin-core{fill:#b7fff2!important;stroke:#d9fff8!important;stroke-width:1.4!important}.search-origin path{fill:none;stroke:#70daca;stroke-width:1.3;opacity:.72}.search-origin text{fill:#85cfc4;font:600 10px JetBrains Mono;text-anchor:middle;letter-spacing:.8px}
+.optimization-result-card.sync-a,.optimization-result-card.sync-b{animation:bestCardRefresh .48s ease-out}.optimization-result-card.sync-a>header>strong,.optimization-result-card.sync-b>header>strong{animation:bestValueRefresh .48s ease-out}.optimization-result-card.sync-a>header>em,.optimization-result-card.sync-b>header>em{color:#8cf0d7}
+@keyframes originEmphasis{0%{opacity:0;transform:translate(282px,706px) scale(.55)}65%{opacity:1;transform:translate(282px,706px) scale(1.12)}100%{transform:translate(282px,706px) scale(1)}}
+@keyframes bestCardRefresh{0%,100%{box-shadow:none}42%{border-color:var(--plan-color);box-shadow:inset 0 0 18px color-mix(in srgb,var(--plan-color) 11%,transparent),0 0 12px color-mix(in srgb,var(--plan-color) 12%,transparent)}}
+@keyframes bestValueRefresh{0%,100%{opacity:1}42%{opacity:.72;color:var(--plan-color)}}
