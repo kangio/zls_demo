@@ -201,7 +201,7 @@ function DimensionProgressBorder({progress}:{progress:number}){
 type TopologyKind='clos'|'railClos'|'dualClos'|'torus3d'|'dragonfly'
 type TopologyPoint={x:number;y:number;tone?:'a'|'b'|'endpoint'}
 type ConceptPriority='performance'|'cost'|'reliability'|'balanced'
-type ConceptPlan={label:string;topology:TopologyKind;p:number;d:number;nodes:number;throughput:number;ttft:number;tpot:number;util:number;cost:number;availability:string;network:string;networkNote:string;kv:string;kvHit:number;focus:string}
+type ConceptPlan={label:string;topology:TopologyKind;p:number;d:number;nodes:number;throughput:number;ttft:number;tpot:number;util:number;cost:number;availability:string;network:string;networkNote:string;nodeUplink:string;injectionTbps:number;fabricDiameter:number;fabricUnits:string;kv:string;hbmTotalTB:number;hbmOccupiedTB:number;hbmKvTB:number;ddrTB:number;ssdTB:number;focus:string}
 const topologyDefinitions:Record<TopologyKind,{label:string;points:TopologyPoint[];edges:[number,number,string?][]}>={
   clos:{label:'2-Tier CLOS',points:[{x:38,y:8,tone:'a'},{x:62,y:8,tone:'a'},{x:18,y:45},{x:39,y:45},{x:61,y:45},{x:82,y:45},{x:10,y:86,tone:'endpoint'},{x:25,y:86,tone:'endpoint'},{x:32,y:86,tone:'endpoint'},{x:46,y:86,tone:'endpoint'},{x:54,y:86,tone:'endpoint'},{x:68,y:86,tone:'endpoint'},{x:75,y:86,tone:'endpoint'},{x:90,y:86,tone:'endpoint'}],edges:[[0,2],[0,3],[0,4],[0,5],[1,2],[1,3],[1,4],[1,5],[2,6],[2,7],[3,8],[3,9],[4,10],[4,11],[5,12],[5,13]]},
   railClos:{label:'Rail-Optimized Fat-Tree',points:[{x:17,y:8,tone:'a'},{x:39,y:8,tone:'a'},{x:61,y:8,tone:'b'},{x:83,y:8,tone:'b'},{x:17,y:47},{x:39,y:47},{x:61,y:47},{x:83,y:47},{x:9,y:87,tone:'endpoint'},{x:25,y:87,tone:'endpoint'},{x:31,y:87,tone:'endpoint'},{x:47,y:87,tone:'endpoint'},{x:53,y:87,tone:'endpoint'},{x:69,y:87,tone:'endpoint'},{x:75,y:87,tone:'endpoint'},{x:91,y:87,tone:'endpoint'}],edges:[[0,4,'a'],[0,5,'a'],[1,4,'a'],[1,5,'a'],[2,6,'b'],[2,7,'b'],[3,6,'b'],[3,7,'b'],[4,8],[4,9],[5,10],[5,11],[6,12],[6,13],[7,14],[7,15]]},
@@ -225,6 +225,12 @@ function ConceptTopology({kind,scale,compact=false,language='zh'}:{kind:Topology
 
 const conceptPlanOrder:ConceptPriority[]=['performance','cost','reliability','balanced']
 const conceptPlanColors:Record<ConceptPriority,string>={performance:'#56d9ef',cost:'#58d9ae',reliability:'#9c9fff',balanced:'#f3c66f'}
+const topologySearchProfiles:Record<ConceptPriority,{at:number;nodes:number;topology:TopologyKind}[]>={
+  performance:[{at:0,nodes:36,topology:'clos'},{at:29,nodes:40,topology:'clos'},{at:47,nodes:44,topology:'railClos'},{at:66,nodes:42,topology:'dragonfly'}],
+  cost:[{at:0,nodes:36,topology:'clos'},{at:37,nodes:34,topology:'railClos'},{at:59,nodes:28,topology:'torus3d'},{at:82,nodes:30,topology:'torus3d'}],
+  reliability:[{at:0,nodes:36,topology:'clos'},{at:33,nodes:40,topology:'railClos'},{at:56,nodes:46,topology:'dualClos'},{at:79,nodes:44,topology:'dualClos'}],
+  balanced:[{at:0,nodes:36,topology:'clos'},{at:41,nodes:38,topology:'dragonfly'},{at:68,nodes:40,topology:'railClos'},{at:88,nodes:37,topology:'railClos'}],
+}
 
 function smoothOptimizationProgress(progress:number){
   const raw=Math.max(0,Math.min(1,(progress-8)/88))
@@ -232,44 +238,39 @@ function smoothOptimizationProgress(progress:number){
 }
 
 function preferenceSearchProgress(progress:number){
-  const total=smoothOptimizationProgress(progress),split=.6
+  const total=smoothOptimizationProgress(progress),split=.12
   return {total,trunk:Math.min(1,total/split),branch:Math.max(0,(total-split)/(1-split)),split}
+}
+
+function DimensionGlyph({index}:{index:number}){
+  if(index===0)return <g className="dimension-glyph scheduler"><path d="M-20-12h40M-20 0h40M-20 12h40"/><circle cx="9" cy="-12" r="4"/><circle cx="-7" cy="0" r="4"/><circle cx="3" cy="12" r="4"/></g>
+  if(index===1)return <g className="dimension-glyph engine"><rect className="engine-frame" x="-22" y="-20" width="44" height="40" rx="3"/><rect x="-17" y="-14" width="34" height="7" rx="1"/><rect x="-17" y="-3" width="25" height="7" rx="1"/><rect x="-17" y="8" width="31" height="7" rx="1"/><path d="M17 1h4m-3-3 3 3-3 3"/></g>
+  if(index===2)return <g className="dimension-glyph parallel"><rect x="-18" y="-18" width="14" height="14"/><rect x="4" y="-18" width="14" height="14"/><rect x="-18" y="4" width="14" height="14"/><rect x="4" y="4" width="14" height="14"/><circle cx="0" cy="0" r="3"/><path d="M-11-4v4h8M11-4v4H3M-11 4V0h8M11 4V0H3"/></g>
+  if(index===3)return <g className="dimension-glyph flow"><rect x="-16" y="-17" width="9" height="7" rx="1"/><rect x="7" y="-17" width="9" height="7" rx="1"/><rect x="-21" y="10" width="9" height="7" rx="1"/><rect x="-4" y="10" width="9" height="7" rx="1"/><rect x="12" y="10" width="9" height="7" rx="1"/><path d="M-12-10v7M12-10v7M-12-3h24M-17-3v13M0-3v13M17-3v13"/><rect className="flow-packet" x="-4" y="-6" width="8" height="5" rx="1"/></g>
+  if(index===4)return <g className="dimension-glyph topology-cycle">
+    <g className="topology-state clos-mini"><rect x="-16" y="-19" width="8" height="6"/><rect x="8" y="-19" width="8" height="6"/><rect x="-22" y="13" width="7" height="6"/><rect x="-4" y="13" width="7" height="6"/><rect x="15" y="13" width="7" height="6"/><path d="M-12-13V0M12-13V0M-19 0h38M-18.5 0v13M-.5 0v13M18.5 0v13"/></g>
+    <g className="topology-state torus-mini"><rect x="-17" y="-17" width="8" height="7"/><rect x="9" y="-17" width="8" height="7"/><rect x="-17" y="10" width="8" height="7"/><rect x="9" y="10" width="8" height="7"/><path d="M-9-14h18M-9 14h18M-13-10v20M13-10v20M-13-14C-25-14-25 14-13 14M13-14C25-14 25 14 13 14"/></g>
+    <g className="topology-state dragonfly-mini"><circle cx="-15" cy="-12" r="4"/><circle cx="-7" cy="-18" r="4"/><circle cx="-5" cy="-7" r="4"/><circle cx="13" cy="11" r="4"/><circle cx="6" cy="18" r="4"/><circle cx="18" cy="18" r="4"/><path d="M-15-12-7-18-5-7-15-12M13 11 6 18 18 18 13 11M-5-7 13 11M-7-18 18 18"/></g>
+  </g>
+  if(index===5)return <g className="dimension-glyph reuse"><rect x="-19" y="-13" width="25" height="25" rx="3"/><rect x="-6" y="-18" width="25" height="25" rx="3"/><path d="M-14-6h13M-14 0h13M0-11h13M0-5h13M-1 12c5 5 11 4 15 0"/><circle className="reuse-pulse" cx="14" cy="12" r="3.5"/></g>
+  return <g className="dimension-glyph tier"><path d="M-20-14h40l-6 8h-28zM-15-3h30L10 5h-20zM-10 8h20l-4 8H-6z"/><path className="tier-transfer" d="M23-12v25m-4-4 4 4 4-4"/></g>
 }
 
 function HighDimensionalSearch({progress,hasStarted,done,activeKeys,language,onRestart}:{progress:number;hasStarted:boolean;done:boolean;activeKeys:ConceptPriority[];language:'zh'|'en';onRestart:()=>void}){
   const en=language==='en'
   const {total:ratio,trunk:trunkRatio,branch:branchRatio,split:splitAt}=preferenceSearchProgress(progress)
-  const dimensionLabels=en?['SCHED','ENGINE','PARALLEL','FLOW','PLACEMENT','KV REUSE','KV TIER']:['服务调度','引擎参数','并行策略','数据流','资源放置','KV 复用','KV 分层']
-  const sharedPoints:[number,number][]=[[282,706],[326,674],[374,628],[420,574],[470,523],[522,476],[568,434]]
-  const paths:Record<ConceptPriority,{points:[number,number][]}>={
-    performance:{points:[[568,434],[620,390],[690,340],[758,300]]},
-    cost:{points:[[568,434],[600,425],[635,405],[670,388]]},
-    reliability:{points:[[568,434],[606,410],[650,380],[690,356]]},
-    balanced:{points:[[568,434],[614,402],[670,360],[720,326]]},
+  const dimensionLabels=en?['SCHED','ENGINE','PARALLEL','FLOW','TOPOLOGY','KV REUSE','KV TIER']:['服务调度','引擎参数','并行策略','数据流','网络拓扑','KV 复用','KV 分层']
+  const sharedTrail:[number,number][]=[[310,688],[345,648],[390,592],[430,560]]
+  const paths:Record<ConceptPriority,{curve:string;points:[number,number][]}>={
+    performance:{curve:'M430 560 C470 512 489 433 548 395 S728 278 820 306',points:[[470,505],[520,420],[610,350],[720,305],[820,306]]},
+    cost:{curve:'M430 560 C472 530 491 616 548 585 S648 489 720 431',points:[[470,560],[530,590],[600,540],[665,480],[720,431]]},
+    reliability:{curve:'M430 560 C489 505 517 558 579 524 S718 417 808 398',points:[[480,540],[560,535],[650,480],[730,425],[808,398]]},
+    balanced:{curve:'M430 560 C473 535 486 474 543 455 S682 344 765 350',points:[[470,520],[535,460],[620,405],[700,360],[765,350]]},
   }
-  const pointAlong=(points:[number,number][],pathRatio:number,wobble=0)=>{
-    const scaled=Math.max(0,Math.min(1,pathRatio))*(points.length-1)
-    const index=Math.min(points.length-2,Math.floor(scaled))
-    const local=scaled-index
-    const a=points[index],b=points[index+1]
-    return [a[0]+(b[0]-a[0])*local+wobble,a[1]+(b[1]-a[1])*local-wobble*.55]
-  }
-  const currentPoint=(key:ConceptPriority)=>{
-    const wobble=hasStarted&&!done?Math.sin(progress*.27+conceptPlanOrder.indexOf(key)*1.7)*5*(1-ratio):0
-    return branchRatio>0?pointAlong(paths[key].points,branchRatio,wobble):pointAlong(sharedPoints,trunkRatio,wobble*.35)
-  }
-  const candidatePoints=Array.from({length:68},(_,index)=>{
-    const x=132+((index*83)%736),y=150+((index*137)%690)
-    const directional=(x-y+680)/1360,basinDistance=Math.hypot(x-690,(y-345)*1.12)
-    const quality=Math.max(.12,Math.min(.97,directional*.48+(1-Math.min(1,basinDistance/620))*.52))
-    const infeasible=(index%13===0&&quality<.72)||(x<210&&y>610)
-    return {x,y,quality,tone:infeasible?'infeasible':quality>.72?'promising':quality<.42?'rejected':'tested',delay:(index%19)*.07}
-  })
-  const visibleCandidates=Math.round(candidatePoints.length*(hasStarted?Math.max(.14,progress/100):.08))
-  const paretoRatio=Math.max(0,Math.min(1,branchRatio*1.35))
+  const sharedCurve='M282 706 C310 690 325 670 346 647 S386 596 430 560'
+  const paretoRatio=Math.max(0,Math.min(1,branchRatio*1.8))
   const objective=(.38+.55*ratio).toFixed(3),loss=(1.42-1.31*ratio).toFixed(3)
   const delta=hasStarted&&!done?(Math.max(.003,.061*(1-ratio)+Math.abs(Math.sin(progress*.19))*.008)).toFixed(3):'—'
-  const explorationBranches=[{at:14,tone:'rejected',d:'M342 660 C318 620 302 602 270 588',x:270,y:588},{at:24,tone:'infeasible',d:'M402 596 C438 612 462 630 486 654',x:486,y:654},{at:34,tone:'rejected',d:'M451 542 C428 502 405 482 372 466',x:372,y:466},{at:46,tone:'rejected',d:'M505 492 C538 515 563 531 592 553',x:592,y:553},{at:58,tone:'promising',d:'M558 444 C580 421 596 407 616 392',x:616,y:392},{at:70,tone:'infeasible',d:'M613 401 C624 436 642 458 670 472',x:670,y:472}]
   return <div className={`high-d-search ${hasStarted?'search-active':''} ${done?'search-complete':''}`}>
     <div className="search-title"><span>7D OBJECTIVE LANDSCAPE</span><b>{en?'Multi-objective gradient search':'多目标高维梯度寻优'}</b><small>{en?'PCA PROJECTION · QUALITY-GUIDED SEARCH':'PCA 投影 · 质量引导搜索'}</small></div>
     <svg className="search-manifold" viewBox="0 0 1000 1000" role="img" aria-label={en?'Seven-dimensional multi-objective optimization landscape':'七维多目标寻优空间'}>
@@ -294,63 +295,62 @@ function HighDimensionalSearch({progress,hasStarted,done,activeKeys,language,onR
       </g>
       <g className="contour-scores"><text x="448" y="540">Q 0.42</text><text x="514" y="500">0.58</text><text x="580" y="466">0.73</text><text x="637" y="438">0.86</text><text x="690" y="413">0.92</text></g>
       <g className="latent-slices" filter="url(#softBlur)"><ellipse cx="470" cy="490" rx="300" ry="118" transform="rotate(32 500 500)"/><ellipse cx="535" cy="515" rx="276" ry="96" transform="rotate(-38 500 500)"/><ellipse cx="500" cy="500" rx="338" ry="68" transform="rotate(78 500 500)"/></g>
-      <g className="candidate-cloud">{candidatePoints.slice(0,visibleCandidates).map((point,index)=><circle key={index} className={point.tone} cx={point.x} cy={point.y} r={point.tone==='promising'?4.2:2.7} style={{animationDelay:`${point.delay}s`}}><title>{`quality ${point.quality.toFixed(2)}`}</title></circle>)}</g>
       <g className="gradient-vectors">{Array.from({length:18},(_,index)=>{const x=190+((index*97)%610),y=220+((index*71)%520),angle=Math.atan2(348-y,690-x),length=15+(index%4)*4;return <path key={index} d={`M${x} ${y} l${Math.cos(angle)*length} ${Math.sin(angle)*length}`}/>})}</g>
-      <g className="pareto-envelope" style={{opacity:paretoRatio}}><path className="dominated-region" d="M650 405 C683 360 729 319 785 292 L835 426 C758 452 693 451 650 405Z"/><path className="pareto-line" pathLength="1" d="M650 405 C683 360 729 319 785 292" style={{strokeDashoffset:1-paretoRatio}}/>{[[650,405],[670,388],[690,356],[720,326],[758,300],[785,292]].slice(0,Math.max(1,Math.ceil(6*paretoRatio))).map((point,index)=><circle key={index} cx={point[0]} cy={point[1]} r={index===3?5:3.5}/>)}{paretoRatio>.2&&<><text className="pareto-label" x="742" y="278">PARETO FRONT · 7D PROJECTION</text><text className="dominated-label" x="713" y="438">DOMINATED SOLUTIONS</text></>}{done&&<g className="knee-point"><circle cx="720" cy="326" r="11"/><text x="730" y="321">KNEE POINT · RECOMMENDED</text></g>}</g>
-      <g className="exploration-branches">{explorationBranches.map((branch,index)=>{const visible=progress>=branch.at&&progress<branch.at+18;return <g key={index} className={`${branch.tone} ${visible?'visible':''}`}><path d={branch.d}/><circle cx={branch.x} cy={branch.y} r="4"/>{visible&&<text x={branch.x+8} y={branch.y-8}>{branch.tone.toUpperCase()}</text>}</g>})}</g>
-      <g className="shared-search-path"><polyline className="path-ghost" points={sharedPoints.map(point=>point.join(',')).join(' ')}/><polyline className="path-progress" pathLength="1" points={sharedPoints.map(point=>point.join(',')).join(' ')} style={{strokeDashoffset:1-trunkRatio}}/>{sharedPoints.map((point,index)=><circle key={index} cx={point[0]} cy={point[1]} r="4" style={{opacity:trunkRatio>=index/(sharedPoints.length-1)-.02?1:0}}/>)}</g>
-      <g className="search-origin" filter="url(#searchGlow)"><circle cx="282" cy="706" r="19"/><circle cx="282" cy="706" r="6"/><text x="282" y="742">x₀ · SHARED SEED</text></g>
-      {branchRatio===0&&hasStarted&&<g className="shared-candidate current-candidate" transform={`translate(${pointAlong(sharedPoints,trunkRatio)[0]} ${pointAlong(sharedPoints,trunkRatio)[1]})`} filter="url(#searchGlow)"><circle r="13"/><circle r="4"/><path d="M-22 0h-12M22 0h12M0-22v-12M0 22v12"/></g>}
+      <g className="pareto-envelope" style={{opacity:paretoRatio}}><path className="pareto-sector" d="M615 450 Q704 305 858 250 Q894 342 890 458 Q738 484 615 450Z"/>{paretoRatio>.2&&<><text className="pareto-label" x="756" y="287">PARETO FEASIBLE REGION</text><text className="dominated-label" x="754" y="466">7D PROJECTED FRONTIER</text></>}</g>
+      <g className="shared-search-path"><path className="path-progress" pathLength="1" d={sharedCurve} style={{strokeDashoffset:1-trunkRatio}}/><g className="trail-points shared">{sharedTrail.map((point,index)=>trunkRatio>=(index+1)/sharedTrail.length?<circle key={index} cx={point[0]} cy={point[1]} r="3.5"/>:null)}</g></g>
       {conceptPlanOrder.map(key=>{
-        const selected=activeKeys.includes(key),points=paths[key].points,current=currentPoint(key)
-        const drawn=points.map((point,index)=>{const pointRatio=index/(points.length-1);const visible=branchRatio>=pointRatio-.02;return <circle key={index} cx={point[0]} cy={point[1]} r={index===points.length-1?7:4} style={{opacity:selected&&visible?1:0}}/>})
+        const selected=activeKeys.includes(key)
         return <g key={key} className={`optimization-path ${key} ${selected?'selected':'muted'}`} style={{'--path-color':conceptPlanColors[key]} as React.CSSProperties}>
-          <polyline className="path-ghost" points={points.map(point=>point.join(',')).join(' ')}/>
-          <polyline className="path-progress" pathLength="1" points={points.map(point=>point.join(',')).join(' ')} style={{strokeDashoffset:1-branchRatio}}/>
-          <g className="iteration-nodes">{drawn}</g>
-          {selected&&branchRatio>0&&<g className="current-candidate" transform={`translate(${current[0]} ${current[1]})`} filter="url(#searchGlow)"><circle r="11"/><circle r="3.5"/><path d="M-19 0h-10M19 0h10M0-19v-10M0 19v10"/></g>}
-          {done&&selected&&<text className="optimum-label" x={points.at(-1)![0]} y={points.at(-1)![1]-19}>OPTIMUM · {key.slice(0,4).toUpperCase()}</text>}
+          <path className="path-progress" pathLength="1" d={paths[key].curve} style={{strokeDashoffset:1-branchRatio}}/>
+          {selected&&<g className="trail-points branch">{paths[key].points.slice(0,-1).map((point,index)=>branchRatio>=(index+1)/(paths[key].points.length-1)?<circle key={index} cx={point[0]} cy={point[1]} r="4"/>:null)}{done&&<circle className="optimum-point" cx={paths[key].points.at(-1)![0]} cy={paths[key].points.at(-1)![1]} r="9"/>}</g>}
         </g>
       })}
-      {dimensionLabels.map((label,index)=>{const angle=-Math.PI/2+index*Math.PI*2/7,x=500+Math.cos(angle)*456,y=500+Math.sin(angle)*456;return <g className="dimension-label" key={label} transform={`translate(${x} ${y})`}><circle r="16"/><text y="3">{index+1}</text><text className="dimension-name" y="28">{label}</text></g>})}
+      {dimensionLabels.map((label,index)=>{const angle=-Math.PI/2+index*Math.PI*2/7,x=500+Math.cos(angle)*396,y=500+Math.sin(angle)*396;return <g className={`dimension-label dimension-${index+1}`} key={label} transform={`translate(${x} ${y})`}><circle className="dimension-shell" r="62"/><circle className="dimension-inner" r="53"/><circle className="dimension-track" r="57" pathLength="1"/><DimensionGlyph index={index}/><text className="dimension-name" y="79">{label}</text></g>})}
     </svg>
     <div className="search-hud left"><span><small>ITERATION</small><b>{String(Math.ceil(progress/4)).padStart(2,'0')} / 25</b></span><span className="objective-up"><small>OBJECTIVE ↑</small><b>{objective}</b></span><span><small>GRAD NORM</small><b>{hasStarted?(2.84*(1-ratio)+.04).toFixed(3):'—'}</b></span></div>
     <div className="search-hud right"><span><small>CANDIDATES</small><b>{Math.round(512*progress/100)}</b></span><span><small>FEASIBLE</small><b>{Math.round(58*progress/100)}</b></span><span className="loss-down"><small>LOSS ↓</small><b>{loss}</b></span><span><small>ACCEPTED Δ</small><b>{delta}</b></span></div>
-    <div className="search-losses">{conceptPlanOrder.map(key=>{const target={performance:96.8,cost:94.3,reliability:98.1,balanced:96.2}[key],fit=68+(84-68)*trunkRatio+(target-84)*branchRatio;return <span key={key} className={activeKeys.includes(key)?'active':''} style={{'--path-color':conceptPlanColors[key]} as React.CSSProperties}><i/><small>{key.toUpperCase()} · TARGET FIT</small><b>{fit.toFixed(1)}<em>%</em></b></span>})}</div>
     <div className="search-phase"><i style={{width:`${progress}%`}}/><span>{hasStarted?(done?(en?'Pareto optima converged':'Pareto 前沿上的四个偏好解已收敛'):ratio<splitAt?(en?'Rejecting weak candidates · moving toward the quality basin':'淘汰较差候选 · 正在进入高质量区域'):(en?'Refining preferences along the Pareto frontier':'沿 Pareto 前沿细化不同偏好')):(en?'Ready for joint search':'等待启动联合寻优')}</span>{done&&<button onClick={onRestart}>{en?'RESTART':'重新寻优'}</button>}</div>
   </div>
 }
 
 function OptimizationRadar({plans,progress,activeKeys,language}:{plans:Record<ConceptPriority,ConceptPlan>;progress:number;activeKeys:ConceptPriority[];language:'zh'|'en'}){
   const en=language==='en',search=preferenceSearchProgress(progress)
-  const base=[66,64,67,68,72,65]
-  const shared=[79,77,76,79,83,78]
-  const targets:Record<ConceptPriority,number[]>={performance:[97,95,61,77,84,96],cost:[74,71,97,95,80,75],reliability:[84,82,58,73,99,92],balanced:[89,88,84,88,93,90]}
-  const labels=en?['THROUGHPUT','LATENCY','COST EFF.','UTILIZATION','RELIABILITY','SCALABILITY']:['吞吐能力','时延表现','成本效率','资源利用','可靠性','扩展能力']
+  const base=[65,63,68,66,72,64]
+  const shared=[79,77,80,78,84,79]
+  const targets:Record<ConceptPriority,number[]>={performance:[98,96,97,64,88,82],cost:[72,70,76,98,84,80],reliability:[84,82,86,62,99,98],balanced:[90,89,91,87,95,92]}
+  const labels=['TTFT P95','TPOT P95','OUTPUT TPS','COST / M TOK','AVAILABILITY','MTTR']
   const series=conceptPlanOrder.filter(key=>activeKeys.includes(key)).map((key,keyIndex)=>({
     name:plans[key].label,
     value:base.map((value,index)=>Math.round(value+(shared[index]-value)*search.trunk+(targets[key][index]-shared[index])*search.branch+(search.branch>0&&progress<94?Math.sin(progress*.19+index+keyIndex)*.75*(1-search.branch):0))),
     symbol:'circle',symbolSize:3,lineStyle:{width:1.5,color:conceptPlanColors[key]},itemStyle:{color:conceptPlanColors[key]},areaStyle:{color:conceptPlanColors[key],opacity:.055},
   }))
   const option={animation:true,animationDurationUpdate:520,animationEasingUpdate:'cubicOut',tooltip:{trigger:'item',backgroundColor:'#071824',borderColor:'#31566a',textStyle:{color:'#cfe6ef',fontSize:10}},legend:{top:4,right:8,itemWidth:8,itemHeight:3,textStyle:{color:'#7898a9',fontSize:8},data:series.map(item=>item.name)},radar:{center:['50%','55%'],radius:'67%',shape:'polygon',splitNumber:4,indicator:labels.map(name=>({name,max:100})),axisName:{color:'#66899d',fontSize:8},axisLine:{lineStyle:{color:'rgba(74,118,139,.26)'}},splitLine:{lineStyle:{color:'rgba(74,118,139,.22)'}},splitArea:{areaStyle:{color:['rgba(10,31,45,.32)','rgba(12,40,54,.18)']} }},series:[{type:'radar',data:series}]}
-  return <div className="optimization-radar"><header><span><small>MULTI-OBJECTIVE PROFILE</small><b>{en?'Capability tendency':'方案能力倾向'}</b></span><em>{Math.ceil(progress/4)} / 25 ITERATIONS</em></header><ReactECharts option={option} notMerge lazyUpdate style={{height:'100%',width:'100%'}}/></div>
+  const syncStep=Math.floor(progress/18),syncActive=progress>0&&progress<100&&progress%18<4
+  return <div className={`optimization-radar ${syncActive?`sync-${syncStep%2?'a':'b'}`:''}`}><header><span><small>QUANTIFIED OBJECTIVE METRICS</small><b>{en?'Performance · Cost · Reliability':'性能 · 成本 · 可靠性指标'}</b></span><em><i/> {Math.ceil(progress/4)} / 25 ITERATIONS</em></header><ReactECharts option={option} notMerge lazyUpdate style={{height:'100%',width:'100%'}}/></div>
 }
 
 function OptimizationResultCard({priority,plan,progress,selected,language,onOpen}:{priority:ConceptPriority;plan:ConceptPlan;progress:number;selected:boolean;language:'zh'|'en';onOpen:()=>void}){
   const en=language==='en',search=preferenceSearchProgress(progress)
   const interpolate=(start:number,shared:number,end:number)=>Math.round(start+(shared-start)*search.trunk+(end-shared)*search.branch)
-  const p=interpolate(24,25,plan.p),d=interpolate(12,13,plan.d),nodes=interpolate(36,38,plan.nodes),kvHit=interpolate(68,78,plan.kvHit)
-  const topology:TopologyKind=search.branch<.2?'clos':plan.topology
-  const hasSsd=search.branch>.45&&plan.kv.includes('SSD'),ddr=Math.max(38,kvHit-20),ssd=Math.max(18,kvHit-55)
+  const interpolateCapacity=(start:number,shared:number,end:number)=>Math.round((start+(shared-start)*search.trunk+(end-shared)*search.branch)*10)/10
+  const p=interpolate(24,25,plan.p),d=interpolate(12,13,plan.d)
+  const hbmKvTB=interpolateCapacity(6.4,7.1,plan.hbmKvTB),ddrTB=interpolateCapacity(48,54,plan.ddrTB),ssdTB=interpolateCapacity(120,132,plan.ssdTB)
+  const topologyProfile=topologySearchProfiles[priority]
+  const topologyCandidate=topologyProfile.reduce((current,candidate)=>progress>=candidate.at?candidate:current,topologyProfile[0])
+  const nodes=progress>=100?plan.nodes:topologyCandidate.nodes
+  const topology:TopologyKind=progress>=100?plan.topology:topologyCandidate.topology
+  const hasSsd=search.branch>.45&&plan.ssdTB>0,capacityScaleTB=180
   const targetFit={performance:96.8,cost:94.3,reliability:98.1,balanced:96.2}[priority]
   const fit=68+(84-68)*search.trunk+(targetFit-84)*search.branch
   const coreValue=`${fit.toFixed(1)}%`,coreLabel=en?'TARGET FIT':'目标达成度'
-  return <button className={`optimization-result-card ${priority} ${selected?'selected':'not-selected'}`} style={{'--plan-color':conceptPlanColors[priority]} as React.CSSProperties} onClick={onOpen} disabled={progress<100||!selected}>
+  const updateIndex=topologyProfile.findIndex(candidate=>candidate.at>0&&progress>=candidate.at&&progress<candidate.at+3)
+  const syncClass=updateIndex>=0&&selected?`sync-${updateIndex%2?'a':'b'}`:''
+  return <button className={`optimization-result-card ${priority} ${selected?'selected':'not-selected'} ${syncClass}`} style={{'--plan-color':conceptPlanColors[priority]} as React.CSSProperties} onClick={onOpen} disabled={progress<100||!selected}>
     <header><span><i/><small>{String(conceptPlanOrder.indexOf(priority)+1).padStart(2,'0')} · {plan.label}</small></span><em>{progress>=100&&selected?(en?'CONVERGED':'已收敛'):progress>0&&selected?(search.branch>0?(en?'PREFERENCE SEARCH':'偏好寻优'):(en?'SHARED SEARCH':'共同寻优')):selected?(en?'SHARED BASELINE':'共同基线'):(en?'NOT SELECTED':'未参与')}</em><strong>{coreValue}<small>{coreLabel}</small></strong></header>
     <div className="card-visuals">
       <section className="card-pd"><label>P / D INSTANCE RATIO</label><div><span className="p" style={{flex:p}}><b>P</b><i>{p}</i></span><u><i/><i/><i/></u><span className="d" style={{flex:d}}><b>D</b><i>{d}</i></span></div></section>
-      <section className="card-kv"><label>KV CACHE · HIT {kvHit}%</label><div><span><b>HBM</b><i><u style={{width:`${kvHit}%`}}/></i></span><span><b>DDR</b><i><u style={{width:`${ddr}%`}}/></i></span>{hasSsd&&<span><b>SSD</b><i><u style={{width:`${ssd}%`}}/></i></span>}</div></section>
-      <section className="card-network"><label>NETWORK · {nodes} NODES</label><ConceptTopology key={topology} kind={topology} scale={nodes} compact language={language}/></section>
+      <section className="card-kv"><label>{en?'KV CAPACITY REQUIRED · TB':'KV 容量需求 · TB'}</label><div><span><b>HBM</b><i><u style={{width:`${hbmKvTB/capacityScaleTB*100}%`}}/></i><em>{hbmKvTB.toFixed(1)}</em></span><span><b>DDR</b><i><u style={{width:`${ddrTB/capacityScaleTB*100}%`}}/></i><em>{ddrTB.toFixed(1)}</em></span>{hasSsd&&<span><b>SSD</b><i><u style={{width:`${ssdTB/capacityScaleTB*100}%`}}/></i><em>{ssdTB.toFixed(1)}</em></span>}</div></section>
+      <section className="card-network"><label>NETWORK · {nodes} NODES</label><ConceptTopology key={`${topology}-${nodes}`} kind={topology} scale={nodes} compact language={language}/></section>
     </div>
   </button>
 }
@@ -368,10 +368,10 @@ function ConceptPlanningDemo({onToggle}:{onToggle:()=>void}){
   const done=progress>=100
   const phase=progress<18?text('模型负载画像','Model workload profiling'):progress<44?text('P / D 实例重组','P / D instance restructuring'):progress<68?text('KV Cache 分层迁移','KV Cache tier migration'):progress<88?text('网络拓扑重构','Network topology restructuring'):progress<100?text('联合性能验证','Joint performance validation'):text('联合寻优完成','Joint optimization complete')
   const plans:Record<ConceptPriority,ConceptPlan>={
-    performance:{label:text('性能优先','Performance'),topology:'dragonfly',p:28,d:14,nodes:42,throughput:6.8,ttft:1080,tpot:30,util:74,cost:112,availability:'99.95%',network:'Dragonfly+ · 800G',networkNote:text('6 Group × 7 节点 · 低直径全局链路 · 1:1 注入带宽','6 groups × 7 nodes · Low-diameter global links · 1:1 injection bandwidth'),kv:'HBM → DDR → SSD',kvHit:87,focus:text('吞吐 6.8 M tok/s · TTFT 1,080 ms','Throughput 6.8 M tok/s · TTFT 1,080 ms')},
-    cost:{label:text('成本优先','Cost'),topology:'torus3d',p:20,d:10,nodes:30,throughput:5.2,ttft:1660,tpot:46,util:88,cost:78,availability:'99.92%',network:'3D Torus · 400G',networkNote:text('3 × 2 × 5 节点 · 6 邻接链路 · 拓扑感知放置','3 × 2 × 5 nodes · 6 adjacent links · Topology-aware placement'),kv:text('HBM → DDR 共享池','HBM → Shared DDR Pool'),kvHit:77,focus:text('成本指数 78 · 资源利用率 88%','Cost index 78 · Resource utilization 88%')},
-    reliability:{label:text('可靠性优先','Reliability'),topology:'dualClos',p:28,d:16,nodes:44,throughput:5.9,ttft:1480,tpot:40,util:72,cost:115,availability:'99.99%',network:text('双平面 Rail Fat-Tree · 400G','Dual-Plane Rail Fat-Tree · 400G'),networkNote:text('无阻塞 1:1 · A/B Fabric 隔离 · N+1 关键链路','Non-blocking 1:1 · Isolated A/B fabrics · N+1 critical links'),kv:text('HBM → DDR 双副本','HBM → Dual-Replica DDR'),kvHit:83,focus:text('可用性 99.99% · 双平面冗余','Availability 99.99% · Dual-plane redundancy')},
-    balanced:{label:text('综合最优','Balanced'),topology:'railClos',p:24,d:13,nodes:37,throughput:6.1,ttft:1420,tpot:38,util:81,cost:94,availability:'99.97%',network:'Rail-Optimized CLOS · 400G',networkNote:text('P/D Rail 亲和 · 收敛比 1.5:1 · 关键上联冗余','P/D rail affinity · 1.5:1 convergence · Redundant critical uplinks'),kv:text('HBM → DDR → SSD 热分层','HBM → DDR → SSD Hot Tiering'),kvHit:84,focus:text('吞吐 6.1 M tok/s · 成本指数 94 · 可用性 99.97%','Throughput 6.1 M tok/s · Cost index 94 · Availability 99.97%')},
+    performance:{label:text('性能优先','Performance'),topology:'dragonfly',p:28,d:14,nodes:42,throughput:6.8,ttft:1080,tpot:30,util:74,cost:112,availability:'99.95%',network:'Dragonfly+ · 800G',networkNote:text('6 Group × 7 节点 · 低直径全局链路 · 1:1 注入带宽','6 groups × 7 nodes · Low-diameter global links · 1:1 injection bandwidth'),nodeUplink:'800 Gbps',injectionTbps:33.6,fabricDiameter:3,fabricUnits:text('6 Groups','6 Groups'),kv:text('HBM 热 KV → DDR 温层 → SSD 冷层','HBM Hot KV → DDR Warm Tier → SSD Cold Tier'),hbmTotalTB:21.5,hbmOccupiedTB:12.9,hbmKvTB:8.6,ddrTB:64,ssdTB:96,focus:text('吞吐 6.8 M tok/s · TTFT 1,080 ms','Throughput 6.8 M tok/s · TTFT 1,080 ms')},
+    cost:{label:text('成本优先','Cost'),topology:'torus3d',p:20,d:10,nodes:30,throughput:5.2,ttft:1660,tpot:46,util:88,cost:78,availability:'99.92%',network:'3D Torus · 400G',networkNote:text('3 × 2 × 5 节点 · 6 邻接链路 · 拓扑感知放置','3 × 2 × 5 nodes · 6 adjacent links · Topology-aware placement'),nodeUplink:'400 Gbps',injectionTbps:12,fabricDiameter:4,fabricUnits:'3 × 2 × 5',kv:text('HBM 热 KV → 小型 DDR 池 → 大容量 SSD','HBM Hot KV → Compact DDR Pool → Capacity SSD'),hbmTotalTB:15.4,hbmOccupiedTB:10,hbmKvTB:5.4,ddrTB:32,ssdTB:180,focus:text('成本指数 78 · 资源利用率 88%','Cost index 78 · Resource utilization 88%')},
+    reliability:{label:text('可靠性优先','Reliability'),topology:'dualClos',p:28,d:16,nodes:44,throughput:5.9,ttft:1480,tpot:40,util:72,cost:115,availability:'99.99%',network:text('双平面 Rail Fat-Tree · 400G','Dual-Plane Rail Fat-Tree · 400G'),networkNote:text('无阻塞 1:1 · A/B Fabric 隔离 · N+1 关键链路','Non-blocking 1:1 · Isolated A/B fabrics · N+1 critical links'),nodeUplink:'2 × 400G',injectionTbps:35.2,fabricDiameter:4,fabricUnits:text('2 Fabrics','2 Fabrics'),kv:text('HBM 热 KV → DDR 双副本 → SSD 冗余层','HBM Hot KV → Dual-Replica DDR → Redundant SSD'),hbmTotalTB:22.5,hbmOccupiedTB:13.7,hbmKvTB:8.8,ddrTB:80,ssdTB:160,focus:text('可用性 99.99% · 双平面冗余','Availability 99.99% · Dual-plane redundancy')},
+    balanced:{label:text('综合最优','Balanced'),topology:'railClos',p:24,d:13,nodes:37,throughput:6.1,ttft:1420,tpot:38,util:81,cost:94,availability:'99.97%',network:'Rail-Optimized CLOS · 400G',networkNote:text('P/D Rail 亲和 · 收敛比 1.5:1 · 关键上联冗余','P/D rail affinity · 1.5:1 convergence · Redundant critical uplinks'),nodeUplink:'400 Gbps',injectionTbps:14.8,fabricDiameter:4,fabricUnits:text('2 Rails','2 Rails'),kv:text('HBM 热 KV → DDR 共享池 → SSD 热分层','HBM Hot KV → Shared DDR → SSD Hot Tiering'),hbmTotalTB:18.9,hbmOccupiedTB:11.6,hbmKvTB:7.3,ddrTB:52,ssdTB:128,focus:text('吞吐 6.1 M tok/s · 成本指数 94 · 可用性 99.97%','Throughput 6.1 M tok/s · Cost index 94 · Availability 99.97%')},
   }
   const shownPlan=plans[activeResult??'balanced']
 
@@ -392,7 +392,7 @@ function ConceptPlanningDemo({onToggle}:{onToggle:()=>void}){
       next=Math.min(100,next+1)
       setProgress(next)
       if(next===100&&timer.current)window.clearInterval(timer.current)
-    },78)
+    },150)
   }
 
   const togglePriority=(value:ConceptPriority)=>{
@@ -446,7 +446,11 @@ function ConceptPlanningDemo({onToggle}:{onToggle:()=>void}){
             {(Object.keys(optionMeta) as ConceptPriority[]).map(key=>{const meta=optionMeta[key],selected=priorities.includes(key);return <button key={key} className={selected?'active':''} onClick={()=>togglePriority(key)} aria-pressed={selected}><i>{selected?<Icon name="check" size={12}/>:meta.index}</i><span><b>{plans[key].label}</b><small>{meta.description}</small><u>{meta.tags.map(tag=><em key={tag}>{tag}</em>)}</u></span></button>})}
           </div>
           <div className="planning-requirements-title"><span>02 / PLANNING REQUIREMENT</span><h2>{text('规划需求','Planning Requirements')}</h2><p>{text('模型、SLO、成本与可靠性约束','Model, SLO, cost, and reliability constraints')}</p></div>
-          <div className="concept-model-summary"><div className="model-layer-stack"><i/><i/><i/><b><span>1.6T</span><em>TOTAL</em></b></div><div><small>MODEL PROFILE</small><strong>DeepSeek-V4-Pro</strong><p>49B Active · MoE Sparse · 1M Context</p><em>{text('峰值请求 3,200 req/s','Peak Requests 3,200 req/s')}</em></div></div>
+          <div className="concept-model-choices" role="group" aria-label={text('模型选择示意','Model selection preview')}>
+            <article className="model-choice muted"><header><span>DENSE</span><em>{text('稠密模型','Dense')}</em></header><div className="model-architecture dense"><i/><i/><i/><i/></div><strong>Qwen3-32B</strong><p>32B Dense · GQA · 64K Context</p><small>{text('峰值请求 3,200 req/s','Peak Requests 3,200 req/s')}</small></article>
+            <article className="model-choice selected" aria-current="true"><header><span>SPARSE</span><em>{text('已选','Selected')}</em></header><div className="model-architecture sparse"><i/><i/><i/><i/><i/></div><strong>DeepSeek-V4-Pro</strong><p>49B Active · MoE Sparse · 1M Context</p><small>{text('峰值请求 3,200 req/s','Peak Requests 3,200 req/s')}</small></article>
+            <article className="model-choice muted"><header><span>MULTIMODAL</span><em>{text('多模态','Multimodal')}</em></header><div className="model-architecture multimodal"><i/><i/><i/><i/></div><strong>Qwen2.5-VL-72B</strong><p>72B VLM · ViT + LLM · 128K Context</p><small>{text('峰值请求 3,200 req/s','Peak Requests 3,200 req/s')}</small></article>
+          </div>
           <div className="requirement-sliders">
             <div className="slider-group"><header><b>SLO</b><span>SERVICE LEVEL OBJECTIVE</span></header><RequirementSlider label="TTFT P95" value={requirements.ttft} min={900} max={2200} step={50} unit="ms" onChange={value=>updateRequirement('ttft',value)}/><RequirementSlider label="TPOT P95" value={requirements.tpot} min={24} max={64} step={2} unit="ms" onChange={value=>updateRequirement('tpot',value)}/></div>
             <div className="slider-group compact"><header><b>{text('成本','Cost')}</b><span>COST LIMIT</span></header><RequirementSlider label={text('成本指数上限','Maximum Cost Index')} value={requirements.cost} min={70} max={120} step={1} unit="" onChange={value=>updateRequirement('cost',value)}/></div>
@@ -476,25 +480,32 @@ function RequirementSlider({label,value,min,max,step,unit,digits=0,onChange}:{la
   return <label className="requirement-slider"><span><b>{label}</b><em>{value.toFixed(digits)}{unit}</em></span><input type="range" min={min} max={max} step={step} value={value} style={{background:`linear-gradient(90deg,#45d7ee ${progress}%,#173346 ${progress}%)`}} onChange={event=>onChange(Number(event.target.value))}/></label>
 }
 
-function ConceptPlanDetail({plan,priority,topology,language}:{plan:{label:string;p:number;d:number;nodes:number;throughput:number;ttft:number;tpot:number;util:number;cost:number;availability:string;network:string;networkNote:string;kv:string;kvHit:number;focus:string};priority:'performance'|'cost'|'reliability'|'balanced';topology:TopologyKind;language:'zh'|'en'}){
+function ConceptPlanDetail({plan,priority,topology,language}:{plan:ConceptPlan;priority:'performance'|'cost'|'reliability'|'balanced';topology:TopologyKind;language:'zh'|'en'}){
   const en=language==='en'
   const text=(zh:string,english:string)=>en?english:zh
   const totalInstances=plan.p+plan.d
   const prefillShare=Math.round(plan.p/totalInstances*100)
   const decodeShare=100-prefillShare
-  const hasSsd=plan.kv.includes('SSD')
-  const ddrShare=Math.max(42,plan.kvHit-22)
-  const ssdShare=Math.max(20,plan.kvHit-54)
+  const hasSsd=plan.ssdTB>0,capacityScaleTB=180
+  const runtimePlan={
+    performance:{maxSeqs:192,maxTokens:'32,768',chunk:'8,192',policy:text('SLO 优先级调度','SLO-aware priority')},
+    cost:{maxSeqs:96,maxTokens:'16,384',chunk:'4,096',policy:text('FCFS 连续批处理','FCFS continuous batching')},
+    reliability:{maxSeqs:128,maxTokens:'24,576',chunk:'8,192',policy:text('优先级调度 + 准入保护','Priority + admission guard')},
+    balanced:{maxSeqs:128,maxTokens:'24,576',chunk:'4,096',policy:text('SLO 优先级调度','SLO-aware priority')},
+  }[priority]
   return <div className="concept-plan-detail">
     <div className="result-focus"><span>{plan.label}</span><strong>{plan.focus}</strong></div>
     <div className="result-kpis"><span><small>{text('吞吐','Throughput')}</small><b>{plan.throughput}</b><em>M tok/s</em></span><span><small>TTFT P95</small><b>{plan.ttft}</b><em>ms</em></span><span><small>TPOT P95</small><b>{plan.tpot}</b><em>ms</em></span><span><small>{text('可用性','Availability')}</small><b>{plan.availability}</b><em>SLA</em></span></div>
-    <section className="result-plan"><span>{text('规划结果','PLANNING RESULT')}</span><div className="result-chips"><b>P : D&nbsp; {plan.p} : {plan.d}</b><b>{plan.nodes} {text('节点','Nodes')}</b><b>{text('利用率','Utilization')} {plan.util}%</b><b>{text('成本','Cost')} {plan.cost}</b></div>
-      <div className="detail-visual-grid">
-        <div className="detail-visual-card topology-card"><header><small>NETWORK TOPOLOGY</small><b>{text('网络拓扑','Network Topology')}</b></header><ConceptTopology kind={topology} scale={plan.nodes} language={language}/><footer><span><i className="network"/>{plan.network}</span></footer></div>
-        <div className="detail-visual-card pd-card"><header><small>PREFILL / DECODE</small><b>{text('P/D 实例配比','P/D Instance Ratio')}</b></header><div className="pd-visual"><span className="prefill" style={{flex:plan.p}}><small>PREFILL</small><strong>{plan.p}</strong><em>{prefillShare}%</em><i>{Array.from({length:Math.min(10,Math.ceil(plan.p/3))},(_,index)=><b key={index}/>)}</i></span><u><i/><i/><i/></u><span className="decode" style={{flex:plan.d}}><small>DECODE</small><strong>{plan.d}</strong><em>{decodeShare}%</em><i>{Array.from({length:Math.min(8,Math.ceil(plan.d/2))},(_,index)=><b key={index}/>)}</i></span></div><footer><span><i className="prefill"/>Prefill {plan.p}</span><span><i className="decode"/>Decode {plan.d}</span></footer></div>
-        <div className="detail-visual-card kv-card"><header><small>CACHE HIERARCHY</small><b>{text('KV Cache 分层结构','KV Cache Hierarchy')}</b></header><div className="kv-layer-visual"><span className="hbm"><b>HBM</b><i><u style={{width:`${plan.kvHit}%`}}/></i><em>{text('热数据','Hot Data')} · {plan.kvHit}%</em></span><strong>↓</strong><span className="ddr"><b>DDR</b><i><u style={{width:`${ddrShare}%`}}/></i><em>{text('温数据 · 共享池','Warm Data · Shared Pool')}</em></span>{hasSsd&&<><strong>↓</strong><span className="ssd"><b>SSD</b><i><u style={{width:`${ssdShare}%`}}/></i><em>{text('冷数据 · 回源层','Cold Data · Origin Tier')}</em></span></>}</div><footer><span><i className="cache"/>{plan.kv}</span></footer></div>
+    <section className="result-plan"><span>{text('规划结果','PLANNING RESULT')}</span>
+      <div className="result-runtime-summary">
+        <section><header><small>ENGINE SCHEDULING</small><b>{text('调度参数','Scheduling Parameters')}</b></header><div className="runtime-params"><span><small>max_num_seqs</small><b>{runtimePlan.maxSeqs}</b></span><span><small>max_num_batched_tokens</small><b>{runtimePlan.maxTokens}</b></span><span><small>chunked_prefill</small><b>{runtimePlan.chunk}</b></span><span><small>scheduling_policy</small><b>{runtimePlan.policy}</b></span></div></section>
+        <section><header><small>MODEL PARALLEL</small><b>{text('模型并行','Model Parallelism')}</b></header><strong>TP 8 · PP 2 · EP 8</strong><p>{text(`Prefill DP ${plan.p} · Decode DP ${plan.d}；PP 跨节点流水，EP 对齐 MoE 专家组。`,`Prefill DP ${plan.p} · Decode DP ${plan.d}; cross-node PP with MoE-aligned EP groups.`)}</p></section>
       </div>
-      <div className="result-network-card detail-network-summary"><div><small>{text('组网类型','Network Type')}</small><strong>{plan.network}</strong><p>{plan.networkNote}</p></div><span><b><small>{text('节点规模','Node Scale')}</small>{plan.nodes}<em> Nodes</em></b><b><small>{text('链路带宽','Link Bandwidth')}</small>{priority==='performance'?'800':'400'}<em> Gbps</em></b><b><small>{text('网络组织','Network Layout')}</small>{priority==='performance'?'6 Groups':priority==='cost'?'3 × 2 × 5':priority==='reliability'?'A / B':'Dual Uplink'}<em>{priority==='cost'?' Torus':priority==='performance'?' Dragonfly':' Fabric'}</em></b></span></div>
+      <div className="detail-visual-grid">
+        <div className="detail-visual-card topology-card"><header><small>NETWORK TOPOLOGY</small><b>{text('网络拓扑','Network Topology')}</b></header><ConceptTopology kind={topology} scale={plan.nodes} language={language}/><div className="topology-metrics"><span><small>NODE SCALE</small><b>{plan.nodes}<em>NODES</em></b></span><span><small>NODE UPLINK</small><b>{plan.nodeUplink}</b></span><span><small>INJECTION BW</small><b>{plan.injectionTbps.toFixed(1)}<em>TBPS</em></b></span><span><small>FABRIC DIAMETER</small><b>{plan.fabricDiameter}<em>HOPS</em></b></span></div><footer><span><i className="network"/>{plan.network}</span><span><i className="network"/>{plan.fabricUnits}</span></footer></div>
+        <div className="detail-visual-card pd-card"><header><small>PREFILL / DECODE</small><b>{text('P/D 实例配比','P/D Instance Ratio')}</b></header><div className="pd-visual"><span className="prefill" style={{flex:plan.p}}><small>PREFILL</small><strong>{plan.p}</strong><em>{prefillShare}%</em><i>{Array.from({length:Math.min(10,Math.ceil(plan.p/3))},(_,index)=><b key={index}/>)}</i></span><u><i/><i/><i/></u><span className="decode" style={{flex:plan.d}}><small>DECODE</small><strong>{plan.d}</strong><em>{decodeShare}%</em><i>{Array.from({length:Math.min(8,Math.ceil(plan.d/2))},(_,index)=><b key={index}/>)}</i></span></div><footer><span><i className="prefill"/>Prefill {plan.p}</span><span><i className="decode"/>Decode {plan.d}</span></footer></div>
+        <div className="detail-visual-card kv-card"><header><small>CACHE CAPACITY · ABSOLUTE SIZE</small><b>{text('KV Cache 分层容量','KV Cache Tier Capacity')}</b></header><div className="kv-layer-visual"><span className="hbm"><b>HBM</b><i><u style={{width:`${plan.hbmKvTB/capacityScaleTB*100}%`}}/></i><em>{plan.hbmKvTB.toFixed(1)} TB · {text(`总量 ${plan.hbmTotalTB.toFixed(1)} − 权重/运行占用 ${plan.hbmOccupiedTB.toFixed(1)}`,`Total ${plan.hbmTotalTB.toFixed(1)} − weights/runtime ${plan.hbmOccupiedTB.toFixed(1)}`)}</em></span><strong>↓</strong><span className="ddr"><b>DDR</b><i><u style={{width:`${plan.ddrTB/capacityScaleTB*100}%`}}/></i><em>{plan.ddrTB.toFixed(1)} TB · {text('需规划的温 KV 容量','Planned warm-KV capacity')}</em></span>{hasSsd&&<><strong>↓</strong><span className="ssd"><b>SSD</b><i><u style={{width:`${plan.ssdTB/capacityScaleTB*100}%`}}/></i><em>{plan.ssdTB.toFixed(1)} TB · {text('需规划的冷 KV 容量','Planned cold-KV capacity')}</em></span></>}</div><footer><span><i className="cache"/>{plan.kv}</span></footer></div>
+      </div>
     </section>
   </div>
 }
