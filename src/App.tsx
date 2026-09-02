@@ -256,19 +256,24 @@ function DimensionGlyph({index}:{index:number}){
 
 function HighDimensionalSearch({progress,hasStarted,done,activeKeys,language,onRestart}:{progress:number;hasStarted:boolean;done:boolean;activeKeys:ConceptPriority[];language:'zh'|'en';onRestart:()=>void}){
   const en=language==='en'
-  const {total:ratio,trunk:trunkRatio,branch:branchRatio,split:splitAt}=preferenceSearchProgress(progress)
+  const {total:ratio,branch:branchRatio,split:splitAt}=preferenceSearchProgress(progress)
   const dimensionLabels=en?['SCHED PARAMS','PARALLELISM','TOPOLOGY','KV TIERING','P / D RATIO']:['调度参数','并行策略','网络拓扑','KV 分层','P / D 配比']
-  const sharedTrail:[number,number][]=[[305,688],[350,662],[390,614],[430,560]]
+  const routePrefix='M282 706 C233 674 249 622 307 615 C366 608 351 558 391 552'
+  const sharedStepA='C404 549 416 554 430 552'
+  const sharedStepB='C444 550 458 548 470 544'
+  const sharedStepC='C484 540 497 536 510 532'
   const paths:Record<ConceptPriority,{curve:string;points:[number,number][]}>={
-    performance:{curve:'M430 560 C452 528 474 470 516 426 C584 356 674 278 820 306',points:[[468,500],[524,416],[635,330],[738,296],[820,306]]},
-    cost:{curve:'M430 560 C458 536 492 538 530 544 C570 548 604 523 640 498 C674 468 698 438 720 431',points:[[474,540],[544,543],[620,512],[682,453],[720,431]]},
-    reliability:{curve:'M430 560 C454 527 486 500 530 505 C578 510 608 512 646 480 C700 424 750 382 808 398',points:[[472,510],[548,506],[630,491],[734,402],[808,398]]},
-    balanced:{curve:'M430 560 C452 529 478 482 520 462 C585 431 662 337 765 350',points:[[469,499],[535,454],[620,405],[700,345],[765,350]]},
+    performance:{curve:`${routePrefix} C407 550 442 485 530 405 C582 355 580 310 640 280 C698 252 755 292 820 306`,points:[[450,516],[530,405],[600,338],[688,265],[820,306]]},
+    cost:{curve:`${routePrefix} ${sharedStepA} ${sharedStepB} ${sharedStepC} C523 528 540 537 550 554 C565 580 563 607 590 612 C626 620 650 556 676 500 C690 467 706 440 720 431`,points:[[536,543],[570,600],[608,606],[681,487],[720,431]]},
+    reliability:{curve:`${routePrefix} ${sharedStepA} C445 550 466 543 472 522 C479 494 458 464 424 449 C389 433 350 445 368 430 C399 387 472 378 534 360 C608 339 687 331 765 350`,points:[[462,534],[452,472],[368,430],[610,339],[765,350]]},
+    balanced:{curve:`${routePrefix} ${sharedStepA} ${sharedStepB} C489 537 510 520 530 510 C590 494 673 449 720 420 C754 399 782 391 808 398`,points:[[500,528],[530,510],[630,473],[730,414],[808,398]]},
   }
-  const sharedCurve='M282 706 C301 675 334 704 350 662 C369 616 398 603 430 560'
   const paretoRatio=Math.max(0,Math.min(1,branchRatio*1.8))
   const objective=(.38+.55*ratio).toFixed(3),loss=(1.42-1.31*ratio).toFixed(3)
   const delta=hasStarted&&!done?(Math.max(.003,.061*(1-ratio)+Math.abs(Math.sin(progress*.19))*.008)).toFixed(3):'—'
+  const exploredSpace=10**(6+9*ratio)
+  const exploredExponent=Math.floor(Math.log10(exploredSpace))
+  const exploredMantissa=(exploredSpace/10**exploredExponent).toFixed(2)
   return <div className={`high-d-search ${hasStarted?'search-active':''} ${done?'search-complete':''}`}>
     <div className="search-title"><span>5D OBJECTIVE LANDSCAPE</span><b>{en?'Multi-objective adaptive high-dimensional search':'多目标自适应高维寻优'}</b><small>{en?'PCA PROJECTION · QUALITY-GUIDED SEARCH':'PCA 投影 · 质量引导搜索'}</small></div>
     <svg className="search-manifold" viewBox="0 0 1000 1000" role="img" aria-label={en?'Five-dimensional multi-objective optimization landscape':'五维多目标寻优空间'}>
@@ -284,25 +289,28 @@ function HighDimensionalSearch({progress,hasStarted,done,activeKeys,language,onR
       <g className="quality-regions"><path className="poor-zone" d="M92 606 C165 503 275 520 351 604 C422 683 385 839 245 893 C128 873 73 762 92 606Z"/><ellipse className="quality-basin" cx="688" cy="350" rx="267" ry="226" fill="url(#qualityBasin)"/><path className="quality-ridge" d="M512 476 C562 397 632 326 751 268 C813 238 854 245 895 268"/></g>
       <g className="manifold-grid">
         {[132,206,281,354,424].map((radius,index)=><ellipse key={radius} cx="500" cy="500" rx={radius} ry={radius*(.72+index*.015)} transform={`rotate(${index%2?8:-7} 500 500)`}/>)}
+        <path d="M307 563 C309 519 349 492 391 507 C421 518 449 504 455 536 C461 564 425 566 431 591 C437 616 400 607 378 626 C347 652 302 614 307 563Z"/>
+        <path d="M292 546 C268 480 326 437 378 451 C420 462 423 491 462 474 C500 457 498 409 544 389 C590 370 641 400 640 442 C639 478 601 490 608 518 C616 549 573 531 544 548 C506 571 473 631 415 644 C355 657 307 612 292 546Z"/>
+        <path d="M234 598 C188 499 273 409 347 397 C405 388 421 430 474 394 C523 361 530 303 603 292 C680 280 746 338 728 405 C714 455 671 478 684 523 C699 574 689 646 624 688 C564 727 512 675 450 704 C373 740 270 680 234 598Z"/>
+        <path d="M174 626 C116 485 235 359 329 335 C403 316 433 358 503 308 C567 262 576 213 673 226 C773 239 846 320 810 400 C784 459 738 484 761 547 C789 622 766 700 697 746 C613 801 552 738 480 781 C382 839 209 718 174 626Z"/>
+        <path d="M108 658 C42 467 184 300 306 271 C403 248 445 300 528 241 C611 182 650 142 755 180 C875 223 933 323 877 417 C835 488 803 523 843 601 C895 701 791 802 686 832 C565 867 490 807 381 841 C246 883 137 752 108 658Z"/>
         {dimensionLabels.map((_,index)=>{const angle=-Math.PI/2+index*Math.PI*2/5;return <line key={index} x1="500" y1="500" x2={500+Math.cos(angle)*442} y2={500+Math.sin(angle)*442}/>})}
       </g>
       <g className="manifold-contours">
-        <path d="M500 466 C540 337 647 249 774 263 C859 273 886 344 850 430 C808 530 684 550 582 517 C535 502 492 493 500 466Z"/>
-        <path d="M562 442 C594 353 670 298 758 307 C819 313 838 365 810 423 C780 489 698 503 626 481 C591 470 555 462 562 442Z"/>
-        <path d="M619 416 C641 361 692 333 749 341 C787 347 799 378 781 415 C760 456 708 465 662 451 C638 444 613 433 619 416Z"/>
+        <path d="M286 426 C292 375 336 337 389 348 C432 357 453 395 438 434 C423 474 382 484 343 468 C310 455 281 450 286 426Z"/>
+        <path d="M514 439 C535 365 598 319 657 283 C710 250 774 272 816 313 C855 351 848 400 816 435 C778 476 728 452 687 480 C641 512 594 486 554 468 C527 456 506 458 514 439Z"/>
+        <path d="M548 578 C565 527 614 498 666 510 C718 522 750 560 734 605 C719 648 670 666 626 649 C586 634 537 615 548 578Z"/>
       </g>
       <g className="contour-scores"><text x="448" y="540">Q 0.42</text><text x="514" y="500">0.58</text><text x="580" y="466">0.73</text><text x="637" y="438">0.86</text><text x="690" y="413">0.92</text></g>
       <g className="latent-slices" filter="url(#softBlur)"><ellipse cx="470" cy="490" rx="300" ry="118" transform="rotate(32 500 500)"/><ellipse cx="535" cy="515" rx="276" ry="96" transform="rotate(-38 500 500)"/><ellipse cx="500" cy="500" rx="338" ry="68" transform="rotate(78 500 500)"/></g>
       <g className="gradient-vectors">{Array.from({length:18},(_,index)=>{const x=190+((index*97)%610),y=220+((index*71)%520),angle=Math.atan2(348-y,690-x),length=15+(index%4)*4;return <path key={index} d={`M${x} ${y} l${Math.cos(angle)*length} ${Math.sin(angle)*length}`}/>})}</g>
       <g className="pareto-envelope" style={{opacity:paretoRatio}}><path className="pareto-sector" d="M615 450 Q704 305 858 250 Q894 342 890 458 Q738 484 615 450Z"/>{paretoRatio>.2&&<><text className="pareto-label" x="756" y="287">PARETO FEASIBLE REGION</text><text className="dominated-label" x="754" y="466">5D PROJECTED FRONTIER</text></>}</g>
-      <g className="shared-search-path"><path className="path-progress" pathLength="1" d={sharedCurve} style={{strokeDashoffset:1-trunkRatio}}/><g className="trail-points shared">{sharedTrail.map((point,index)=>trunkRatio>=(index+1)/sharedTrail.length?<circle key={index} cx={point[0]} cy={point[1]} r="3.5"/>:null)}</g></g>
       {hasStarted&&<g className="search-origin" transform="translate(282 706)" filter="url(#searchGlow)"><circle className="origin-halo" r="28"/><circle className="origin-ring" r="14"/><circle className="origin-core" r="5"/><path d="M-20 0h-8M20 0h8M0-20v-8M0 20v8"/><text y="43">{en?'SEARCH START':'寻优起点'}</text></g>}
       {conceptPlanOrder.map(key=>{
         const selected=activeKeys.includes(key)
-        const acceptedPoints=topologySearchProfiles[key].slice(1)
         return <g key={key} className={`optimization-path ${key} ${selected?'selected':'muted'}`} style={{'--path-color':conceptPlanColors[key]} as React.CSSProperties}>
-          <path className="path-progress" pathLength="1" d={paths[key].curve} style={{strokeDashoffset:1-branchRatio}}/>
-          {selected&&<g className="trail-points branch">{paths[key].points.slice(0,-1).map((point,index)=>progress>=acceptedPoints[index].at?<circle key={index} cx={point[0]} cy={point[1]} r="4"/>:null)}{done&&<circle className="optimum-point" cx={paths[key].points.at(-1)![0]} cy={paths[key].points.at(-1)![1]} r="9"/>}</g>}
+          <path className="path-progress" pathLength="1" d={paths[key].curve} style={{strokeDashoffset:1-ratio}}/>
+          {selected&&done&&<g className="trail-points branch"><circle className="optimum-point" cx={paths[key].points.at(-1)![0]} cy={paths[key].points.at(-1)![1]} r="9"/></g>}
         </g>
       })}
       </g>
@@ -310,7 +318,7 @@ function HighDimensionalSearch({progress,hasStarted,done,activeKeys,language,onR
     </svg>
     <div className="search-hud left"><span><small>ITERATION</small><b>{String(Math.ceil(progress/4)).padStart(2,'0')} / 25</b></span><span className="objective-up"><small>OBJECTIVE ↑</small><b>{objective}</b></span><span><small>GRAD NORM</small><b>{hasStarted?(2.84*(1-ratio)+.04).toFixed(3):'—'}</b></span></div>
     <div className="search-hud right"><span><small>CANDIDATES</small><b>{Math.round(512*progress/100)}</b></span><span><small>FEASIBLE</small><b>{Math.round(58*progress/100)}</b></span><span className="loss-down"><small>LOSS ↓</small><b>{loss}</b></span><span><small>ACCEPTED Δ</small><b>{delta}</b></span></div>
-    <div className="search-phase"><i style={{width:`${progress}%`}}/><span>{hasStarted?(done?(en?'Pareto optima converged':'Pareto 前沿上的四个偏好解已收敛'):ratio<splitAt?(en?'Rejecting weak candidates · moving toward the quality basin':'淘汰较差候选 · 正在进入高质量区域'):(en?'Refining preferences along the Pareto frontier':'沿 Pareto 前沿细化不同偏好')):(en?'Ready for joint search':'等待启动联合寻优')}</span>{done&&<button onClick={onRestart}>{en?'RESTART':'重新寻优'}</button>}</div>
+    <div className="search-phase"><i style={{width:`${progress}%`}}/>{hasStarted&&<div className="explored-space-marker" style={{left:`${Math.max(8,Math.min(92,progress))}%`}}><small>{en?'EXPLORED SEARCH SPACE':'已探索寻优空间'}</small><b>{exploredMantissa} × 10<sup>{exploredExponent}</sup></b></div>}<span>{hasStarted?(done?(en?'Pareto optima converged':'Pareto 前沿上的四个偏好解已收敛'):ratio<splitAt?(en?'Rejecting weak candidates · moving toward the quality basin':'淘汰较差候选 · 正在进入高质量区域'):(en?'Refining preferences along the Pareto frontier':'沿 Pareto 前沿细化不同偏好')):(en?'Ready for joint search':'等待启动联合寻优')}</span>{done&&<button onClick={onRestart}>{en?'RESTART':'重新寻优'}</button>}</div>
   </div>
 }
 
